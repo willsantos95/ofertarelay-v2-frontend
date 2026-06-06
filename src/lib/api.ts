@@ -1,6 +1,14 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-export async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+export class ErroNaoAutorizado extends Error {
+  constructor() { super('Não autorizado'); this.name = 'ErroNaoAutorizado'; }
+}
+
+export async function api<T = unknown>(
+  path: string,
+  options?: RequestInit,
+  redirecionar401 = true
+): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     credentials: 'include',
     headers: {
@@ -11,8 +19,10 @@ export async function api<T = unknown>(path: string, options?: RequestInit): Pro
   });
 
   if (response.status === 401) {
-    window.location.href = '/login';
-    throw new Error('Sessão expirada');
+    if (redirecionar401) {
+      window.location.href = '/login';
+    }
+    throw new ErroNaoAutorizado();
   }
 
   if (response.status === 204) return null as T;

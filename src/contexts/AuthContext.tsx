@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { api, ErroNaoAutorizado } from '../lib/api';
 
 export interface Usuario {
   id: string;
@@ -27,10 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function recarregar() {
     try {
-      const data = await api<{ usuario: Usuario }>('/auth/me');
+      // redirecionar401=false para não causar loop na verificação inicial
+      const data = await api<{ usuario: Usuario }>('/auth/me', undefined, false);
       setUsuario(data.usuario);
-    } catch {
-      setUsuario(null);
+    } catch (e) {
+      if (e instanceof ErroNaoAutorizado) {
+        setUsuario(null); // não logado — normal na tela de login
+      } else {
+        setUsuario(null);
+      }
     }
   }
 
