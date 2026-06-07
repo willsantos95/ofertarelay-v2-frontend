@@ -38,7 +38,9 @@ export default function Dashboard() {
   useEffect(() => { carregar(); }, []);
 
   const inst = data?.instance;
-  const desconectado = inst && inst.status !== 'connected' && inst.status !== 'open';
+  const statusConectado = (s?: string) =>
+    s === 'connected' || s === 'open' || s === 'conectado';
+  const desconectado = inst && !statusConectado(inst.status);
 
   return (
     <>
@@ -99,8 +101,8 @@ export default function Dashboard() {
               <p><span className="text-gray-500">Número:</span> <span className="font-medium">{inst.phone}</span></p>
               <p>
                 <span className="text-gray-500">Status:</span>{' '}
-                <span className={`font-semibold ${inst.status === 'connected' || inst.status === 'open' ? 'text-green-600' : 'text-red-500'}`}>
-                  ● {inst.status === 'connected' || inst.status === 'open' ? 'Conectado' : 'Desconectado'}
+                <span className={`font-semibold ${statusConectado(inst.status) ? 'text-green-600' : 'text-red-500'}`}>
+                  ● {statusConectado(inst.status) ? 'Conectado' : 'Desconectado'}
                 </span>
               </p>
             </div>
