@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight,
-  ShoppingBag, Store, Send, X, CheckSquare, Square, MessageCircle, Trash2,
+  ShoppingBag, Store, Send, X, CheckSquare, Square, MessageCircle,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
@@ -81,7 +81,6 @@ export default function Ofertas() {
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
   const [syncingML, setSyncingML] = useState(false);
-  const [limpando, setLimpando]   = useState(false);
   const [msg, setMsg]             = useState('');
   const [erro, setErro]           = useState('');
   const [syncResumo, setSyncResumo] = useState<SyncResumo | null>(null);
@@ -131,21 +130,6 @@ export default function Ofertas() {
     finally { setSyncingML(false); }
   }
 
-  async function limpar() {
-    const alvo = platFiltro === 'shopee' ? 'da Shopee'
-      : platFiltro === 'mercadolivre' ? 'do Mercado Livre'
-      : 'de TODAS as plataformas';
-    if (!window.confirm(`Limpar ofertas ${alvo}? Esta ação não pode ser desfeita.`)) return;
-    setLimpando(true); setErro(''); setMsg(''); setSyncResumo(null);
-    try {
-      const qs = platFiltro ? `?plataforma=${platFiltro}` : '';
-      const r = await api<{ sucesso: boolean; removidas: number }>(`/ofertas${qs}`, { method: 'DELETE' });
-      setMsg(`${r.removidas} oferta${r.removidas !== 1 ? 's' : ''} removida${r.removidas !== 1 ? 's' : ''}.`);
-      setCatFiltro(null); setPagina(1); await carregar();
-    } catch (e) { setErro((e as Error).message || 'Erro ao limpar ofertas'); }
-    finally { setLimpando(false); }
-  }
-
   function mudarPagina(nova: number) {
     if (!paginacao || nova < 1 || nova > paginacao.totalPaginas) return;
     setPagina(nova);
@@ -170,11 +154,6 @@ export default function Ofertas() {
             <button onClick={sincronizarML} disabled={syncingML} className="btn btn-primary">
               {syncingML ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
               {syncingML ? 'Sincronizando...' : 'Mercado Livre'}
-            </button>
-            <button onClick={limpar} disabled={limpando}
-              className="btn btn-outline text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-40">
-              {limpando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {limpando ? 'Limpando...' : platFiltro ? 'Limpar filtradas' : 'Limpar'}
             </button>
           </div>
         }
