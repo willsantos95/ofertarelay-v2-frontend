@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
+import { RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight, ShoppingBag, Store } from 'lucide-react';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
 import Alert from '../components/Alert';
@@ -9,13 +9,16 @@ interface Oferta {
   item_id: string;
   nome: string;
   preco: number;
+  preco_original: number | null;
+  desconto_pct: number | null;
   imagem_url: string | null;
   link_produto: string | null;
   link_afiliado: string | null;
   comissao: number | null;
-  taxa_comissao: number;
-  categoria_id: number;
+  taxa_comissao: number | null;
+  categoria_id: number | null;
   categoria_nome: string;
+  plataforma: 'shopee' | 'mercadolivre';
   status: 'pendente' | 'enviado';
   criado_em: string;
 }
@@ -47,9 +50,11 @@ export default function Ofertas() {
   const [ofertas, setOfertas]       = useState<Oferta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [paginacao, setPaginacao]   = useState<Paginacao | null>(null);
-  const [pagina, setPagina]         = useState(1);
-  const [catFiltro, setCatFiltro]   = useState<number | null>(null);
+  const [pagina, setPagina]             = useState(1);
+  const [catFiltro, setCatFiltro]       = useState<number | null>(null);
   const [statusFiltro, setStatusFiltro] = useState<string>('');
+  const [platFiltro, setPlatFiltro]     = useState<string>('');
+  const [syncingML, setSyncingML]       = useState(false);
 
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
@@ -62,6 +67,7 @@ export default function Ofertas() {
       const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
       if (catFiltro)    params.set('categoria', String(catFiltro));
       if (statusFiltro) params.set('status', statusFiltro);
+      if (platFiltro)   params.set('plataforma', platFiltro);
 
       const [resOfertas, resCats] = await Promise.all([
         api<{ sucesso: boolean; ofertas: Oferta[]; paginacao: Paginacao }>(`/ofertas?${params}`),
@@ -76,21 +82,26 @@ export default function Ofertas() {
     } finally {
       setLoading(false);
     }
-  }, [pagina, catFiltro, statusFiltro]);
+  }, [pagina, catFiltro, statusFiltro, platFiltro]);
 
   async function sincronizar() {
     setSyncing(true); setErro(''); setMsg('');
     try {
-      const r = await api<{ sucesso: boolean; totalNovos: number; totalIgnorados: number; errosCat: string[] }>(
-        '/ofertas/sincronizar', { method: 'POST' }
-      );
-      setMsg(`Sincronização concluída: ${r.totalNovos} novas ofertas adicionadas.`);
-      setPagina(1);
-      await carregar();
-    } catch (e) {
-      setErro((e as Error).message || 'Erro ao sincronizar');
-    } finally {
-      setSyncing(false); }
+      const r = await api<{ sucesso: boolean; totalNovos: number }>('/ofertas/sincronizar', { method: 'POST' });
+      setMsg(`Shopee: ${r.totalNovos} novas ofertas adicionadas.`);
+      setPagina(1); await carregar();
+    } catch (e) { setErro((e as Error).message || 'Erro ao sincronizar Shopee'); }
+    finally { setSyncing(false); }
+  }
+
+  async function sincronizarML() {
+    setSyncingML(true); setErro(''); setMsg('');
+    try {
+      const r = await api<{ sucesso: boolean; totalNovos: number }>('/ofertas/sincronizar/mercadolivre', { method: 'POST' });
+      setMsg(`Mercado Livre: ${r.totalNovos} novas ofertas adicionadas.`);
+      setPagina(1); await carregar();
+    } catch (e) { setErro((e as Error).message || 'Erro ao sincronizar Mercado Livre'); }
+    finally { setSyncingML(false); }
   }
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -106,10 +117,8 @@ export default function Ofertas() {
     setPagina(1);
   }
 
-  function mudarStatus(s: string) {
-    setStatusFiltro(s);
-    setPagina(1);
-  }
+  function mudarStatus(s: string) { setStatusFiltro(s); setPagina(1); }
+  function mudarPlat(p: string)   { setPlatFiltro(p);  setPagina(1); }
 
   return (
     <>
@@ -117,10 +126,16 @@ export default function Ofertas() {
         title="Ofertas"
         subtitle="Ofertas da Shopee disponíveis para enviar nos grupos de WhatsApp"
         action={
-          <button onClick={sincronizar} disabled={syncing} className="btn btn-primary">
-            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {syncing ? 'Sincronizando...' : 'Sincronizar Shopee'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={sincronizar} disabled={syncing} className="btn btn-outline">
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {syncing ? 'Sincronizando...' : 'Shopee'}
+            </button>
+            <button onClick={sincronizarML} disabled={syncingML} className="btn btn-primary">
+              {syncingML ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
+              {syncingML ? 'Sincronizando...' : 'Mercado Livre'}
+            </button>
+          </div>
         }
       />
 
@@ -152,18 +167,23 @@ export default function Ofertas() {
           ))}
         </div>
 
+        {/* Filtro plataforma */}
+        <div className="flex gap-1.5">
+          {[['', '🛍️ Todas'], ['shopee', '🟠 Shopee'], ['mercadolivre', '🟡 Mercado Livre']].map(([val, label]) => (
+            <button key={val} onClick={() => mudarPlat(val)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                platFiltro === val ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>{label}</button>
+          ))}
+        </div>
+
         {/* Filtro status */}
         <div className="ml-auto flex gap-1.5">
           {[['', 'Todos'], ['pendente', 'Pendentes'], ['enviado', 'Enviados']].map(([val, label]) => (
-            <button
-              key={val}
-              onClick={() => mudarStatus(val)}
+            <button key={val} onClick={() => mudarStatus(val)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 statusFiltro === val ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
+              }`}>{label}</button>
           ))}
         </div>
       </div>
@@ -261,9 +281,22 @@ function OfertaCard({ oferta: o, onAtualizou }: { oferta: Oferta; onAtualizou: (
           </div>
         )}
 
-        {/* Badge comissão */}
-        <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-          {formatComissao(o.taxa_comissao)} comissão
+        {/* Badge comissão (Shopee) ou desconto (ML) */}
+        {o.taxa_comissao != null && (
+          <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            {formatComissao(o.taxa_comissao)} comissão
+          </span>
+        )}
+        {o.desconto_pct != null && (
+          <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            -{o.desconto_pct}% OFF
+          </span>
+        )}
+        {/* Badge plataforma */}
+        <span className={`absolute top-2 left-2 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+          o.plataforma === 'shopee' ? 'bg-orange-500' : 'bg-yellow-500'
+        }`}>
+          {o.plataforma === 'shopee' ? 'Shopee' : 'ML'}
         </span>
 
         {/* Badge status */}
@@ -285,6 +318,9 @@ function OfertaCard({ oferta: o, onAtualizou }: { oferta: Oferta; onAtualizou: (
           {o.nome}
         </p>
 
+        {o.preco_original != null && (
+          <p className="text-xs text-gray-400 line-through">{formatPreco(o.preco_original)}</p>
+        )}
         <p className="text-lg font-bold text-brand-600">{formatPreco(o.preco)}</p>
 
         {/* Ações */}

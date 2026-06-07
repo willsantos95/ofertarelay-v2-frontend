@@ -6,7 +6,7 @@ import Alert from '../components/Alert';
 
 type AffPayload = {
   amazon:       { tag: string; cookies: string };
-  mercadoLivre: { tag: string; cookies: string };
+  mercadoLivre: { tag: string; cookies: string; urls: string };
   shopee:       { appId: string; appSecret: string };
   magalu:       { magazineId: string };
   aliexpress:   { apiKey: string; apiSecret: string; trackingId: string };
@@ -14,7 +14,7 @@ type AffPayload = {
 
 const EMPTY: AffPayload = {
   amazon:       { tag: '', cookies: '' },
-  mercadoLivre: { tag: '', cookies: '' },
+  mercadoLivre: { tag: '', cookies: '', urls: '' },
   shopee:       { appId: '', appSecret: '' },
   magalu:       { magazineId: '' },
   aliexpress:   { apiKey: '', apiSecret: '', trackingId: '' },
@@ -99,8 +99,18 @@ export default function AffiliateSettings() {
         </PlatCard>
 
         <PlatCard titulo="🛒 Mercado Livre">
-          <Field label="Tag de afiliado" value={form.mercadoLivre.tag} onChange={(v) => set('mercadoLivre', 'tag', v)} placeholder="ex: oferta-21" />
-          <Field label="Cookies" value={form.mercadoLivre.cookies} onChange={(v) => set('mercadoLivre', 'cookies', v)} type="password" placeholder="Cole seus cookies aqui" />
+          <Field label="Tag de afiliado" value={form.mercadoLivre.tag} onChange={(v) => set('mercadoLivre', 'tag', v)} placeholder="ex: GT20240630184403" />
+          <Field label="Cookies" value={form.mercadoLivre.cookies} onChange={(v) => set('mercadoLivre', 'cookies', v)} type="password" placeholder="Cole seus cookies do navegador aqui" />
+          <div>
+            <label className="label">URLs para buscar ofertas <span className="text-gray-400 font-normal">(uma por linha)</span></label>
+            <textarea
+              className="input min-h-[80px] resize-y text-xs font-mono"
+              value={form.mercadoLivre.urls}
+              onChange={(e) => set('mercadoLivre', 'urls', e.target.value)}
+              placeholder={`https://lista.mercadolivre.com.br/eletronicos\nhttps://lista.mercadolivre.com.br/celular`}
+            />
+            <p className="text-xs text-gray-400 mt-1">Cole URLs de páginas de categoria ou busca do Mercado Livre.</p>
+          </div>
         </PlatCard>
 
         <PlatCard titulo="🟠 Shopee">
