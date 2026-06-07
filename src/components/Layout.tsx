@@ -2,19 +2,20 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Smartphone, Users, Link2, Send,
-  CreditCard, ClipboardList, HelpCircle, LogOut, Zap, ShoppingBag,
+  CreditCard, ClipboardList, HelpCircle, LogOut, Zap, ShoppingBag, CalendarClock,
 } from 'lucide-react';
 
 const NAV = [
-  { to: '/',          icon: LayoutDashboard, label: 'Dashboard'  },
-  { to: '/whatsapp',  icon: Smartphone,      label: 'WhatsApp'   },
-  { to: '/groups',    icon: Users,            label: 'Grupos'     },
-  { to: '/ofertas',   icon: ShoppingBag,      label: 'Ofertas'    },
-  { to: '/affiliate', icon: Link2,            label: 'Afiliado'   },
-  { to: '/telegram',  icon: Send,             label: 'Telegram'   },
-  { to: '/billing',   icon: CreditCard,       label: 'Faturamento'},
-  { to: '/relay-logs',icon: ClipboardList,    label: 'Histórico'  },
-  { to: '/help',      icon: HelpCircle,       label: 'Ajuda'      },
+  { to: '/',            icon: LayoutDashboard, label: 'Dashboard'   },
+  { to: '/whatsapp',    icon: Smartphone,      label: 'WhatsApp'    },
+  { to: '/groups',      icon: Users,            label: 'Grupos'      },
+  { to: '/ofertas',     icon: ShoppingBag,      label: 'Ofertas'     },
+  { to: '/agendamento', icon: CalendarClock,    label: 'Agendamento' },
+  { to: '/affiliate',   icon: Link2,            label: 'Afiliado'    },
+  { to: '/telegram',    icon: Send,             label: 'Telegram'    },
+  { to: '/billing',     icon: CreditCard,       label: 'Faturamento' },
+  { to: '/relay-logs',  icon: ClipboardList,    label: 'Histórico'   },
+  { to: '/help',        icon: HelpCircle,       label: 'Ajuda'       },
 ];
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {

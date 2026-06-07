@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight,
-  ShoppingBag, Store, Send, X, CheckSquare, Square, MessageCircle,
+  ShoppingBag, Store, Send, X, CheckSquare, Square, MessageCircle, Sparkles, CalendarClock,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
 import Alert from '../components/Alert';
@@ -88,6 +89,31 @@ export default function Ofertas() {
   // Modal de envio
   const [modalOferta, setModalOferta] = useState<Oferta | null>(null);
 
+  // Seleção para a fila de agendamento
+  const [selFila, setSelFila]       = useState<Set<string>>(new Set());
+  const [addingFila, setAddingFila] = useState(false);
+
+  function toggleSelFila(id: string) {
+    setSelFila((prev) => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+  }
+
+  async function adicionarAFila() {
+    if (!selFila.size) return;
+    setAddingFila(true); setErro(''); setMsg('');
+    try {
+      const r = await api<{ sucesso: boolean; adicionados: number }>('/agendamento/itens', {
+        method: 'POST', body: JSON.stringify({ ofertaIds: [...selFila] }),
+      });
+      setMsg(`${r.adicionados} oferta${r.adicionados !== 1 ? 's' : ''} adicionada${r.adicionados !== 1 ? 's' : ''} à fila de agendamento.`);
+      setSelFila(new Set());
+    } catch (e) { setErro((e as Error).message || 'Erro ao adicionar à fila'); }
+    finally { setAddingFila(false); }
+  }
+
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
@@ -155,6 +181,9 @@ export default function Ofertas() {
               {syncingML ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
               {syncingML ? 'Sincronizando...' : 'Mercado Livre'}
             </button>
+            <Link to="/agendamento" className="btn btn-outline">
+              <CalendarClock className="w-4 h-4" /> Agendamento
+            </Link>
           </div>
         }
       />
@@ -229,6 +258,8 @@ export default function Ofertas() {
                 oferta={o}
                 onAtualizou={carregar}
                 onEnviar={() => setModalOferta(o)}
+                selecionada={selFila.has(o.id)}
+                onToggleSelecao={() => toggleSelFila(o.id)}
               />
             ))}
           </div>
@@ -247,6 +278,23 @@ export default function Ofertas() {
             </div>
           )}
         </>
+      )}
+
+      {/* Barra de seleção para a fila */}
+      {selFila.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white shadow-xl border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <span className="text-sm text-gray-700 font-medium">
+            {selFila.size} selecionada{selFila.size > 1 ? 's' : ''}
+          </span>
+          <button onClick={() => setSelFila(new Set())} className="text-xs text-gray-400 hover:text-gray-600">
+            Limpar
+          </button>
+          <button onClick={adicionarAFila} disabled={addingFila}
+            className="btn btn-primary py-1.5 px-3 text-sm">
+            {addingFila ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+            Adicionar à fila
+          </button>
+        </div>
       )}
 
       {/* Modal de envio */}
@@ -320,8 +368,9 @@ function SyncResumoCard({ resumo, onFechar }: { resumo: SyncResumo; onFechar: ()
 
 // ─── Card de oferta ───────────────────────────────────────────────
 
-function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
+function OfertaCard({ oferta: o, onAtualizou, onEnviar, selecionada, onToggleSelecao }: {
   oferta: Oferta; onAtualizou: () => void; onEnviar: () => void;
+  selecionada: boolean; onToggleSelecao: () => void;
 }) {
   const [updating, setUpdating] = useState(false);
 
@@ -337,7 +386,7 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
   }
 
   return (
-    <div className="card p-0 overflow-hidden flex flex-col group">
+    <div className={`card p-0 overflow-hidden flex flex-col group ${selecionada ? 'ring-2 ring-brand-500' : ''}`}>
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
         {o.imagem_url ? (
           <img src={o.imagem_url} alt={o.nome}
@@ -349,6 +398,14 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
           </div>
         )}
 
+        {/* Checkbox de seleção para a fila */}
+        <button onClick={onToggleSelecao} title="Selecionar para a fila"
+          className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+            selecionada ? 'bg-brand-500 text-white' : 'bg-white/80 text-gray-400 hover:bg-white'
+          }`}>
+          {selecionada ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+        </button>
+
         {o.taxa_comissao != null && (
           <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
             {formatComissao(o.taxa_comissao)} comissão
@@ -359,7 +416,7 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
             -{o.desconto_pct}% OFF
           </span>
         )}
-        <span className={`absolute top-2 left-2 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+        <span className={`absolute bottom-2 left-2 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
           o.plataforma === 'shopee' ? 'bg-orange-500' : 'bg-yellow-600'
         }`}>
           {o.plataforma === 'shopee' ? 'Shopee' : 'ML'}
@@ -429,6 +486,21 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
   const [avisoLink, setAvisoLink]       = useState('');
   const [enviando, setEnviando]         = useState(false);
   const [resultado, setResultado]       = useState<{ wa: number; tg: number; erros: string[] } | null>(null);
+  // IA
+  const [melhorandoIA, setMelhorandoIA] = useState(false);
+  const [erroIA, setErroIA]             = useState('');
+
+  async function melhorarComIA() {
+    setMelhorandoIA(true); setErroIA('');
+    try {
+      const r = await api<{ sucesso: boolean; legenda: string }>(
+        `/ofertas/${oferta.id}/legenda-ia`, { method: 'POST', body: JSON.stringify({ legenda }) }
+      );
+      if (r.sucesso && r.legenda) setLegenda(r.legenda);
+    } catch (e) {
+      setErroIA((e as Error).message || 'Erro ao gerar legenda com IA.');
+    } finally { setMelhorandoIA(false); }
+  }
 
   useEffect(() => {
     // 1. Grupos WhatsApp de destino
@@ -581,15 +653,23 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
 
           {/* Legenda editável */}
           <div>
-            <label className="label flex items-center gap-2">
-              Legenda
-              <span className="text-gray-400 font-normal">(editável)</span>
-              {gerandoLink && (
-                <span className="flex items-center gap-1 text-xs text-brand-600">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Gerando link de afiliado...
-                </span>
-              )}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="label mb-0 flex items-center gap-2">
+                Legenda
+                <span className="text-gray-400 font-normal">(editável)</span>
+                {gerandoLink && (
+                  <span className="flex items-center gap-1 text-xs text-brand-600">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Gerando link...
+                  </span>
+                )}
+              </label>
+              <button onClick={melhorarComIA} disabled={melhorandoIA || carregando}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-50">
+                {melhorandoIA ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {melhorandoIA ? 'Gerando...' : 'Melhorar com IA'}
+              </button>
+            </div>
+            {erroIA && <p className="text-xs text-amber-600 mb-1">⚠️ {erroIA}</p>}
             <textarea
               value={legenda}
               onChange={(e) => setLegenda(e.target.value)}

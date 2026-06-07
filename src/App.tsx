@@ -13,6 +13,7 @@ import TelegramSettings from './pages/TelegramSettings';
 import Billing from './pages/Billing';
 import RelayLogs from './pages/RelayLogs';
 import Ofertas from './pages/Ofertas';
+import Agendamento from './pages/Agendamento';
 import Help from './pages/Help';
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="billing/success" element={<Billing />} />
         <Route path="relay-logs"    element={<RelayLogs />} />
         <Route path="ofertas"       element={<Ofertas />} />
+        <Route path="agendamento"   element={<Agendamento />} />
         <Route path="help"          element={<Help />} />
       </Route>
 
