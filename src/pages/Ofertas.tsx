@@ -340,23 +340,52 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
 function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
   oferta: Oferta; onFechar: () => void; onEnviou: () => void;
 }) {
-  const [legenda, setLegenda]         = useState(() => gerarLegenda(oferta));
-  const [grupos, setGrupos]           = useState<GrupoDestino[]>([]);
+  const [legenda, setLegenda]           = useState(() => gerarLegenda(oferta));
+  const [grupos, setGrupos]             = useState<GrupoDestino[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-  const [carregando, setCarregando]   = useState(true);
-  const [enviando, setEnviando]       = useState(false);
-  const [resultado, setResultado]     = useState<{ enviados: number; erros: string[] } | null>(null);
+  const [carregando, setCarregando]     = useState(true);  // carrega grupos + link
+  const [gerandoLink, setGerandoLink]   = useState(false);
+  const [avisoLink, setAvisoLink]       = useState('');
+  const [enviando, setEnviando]         = useState(false);
+  const [resultado, setResultado]       = useState<{ enviados: number; erros: string[] } | null>(null);
 
   useEffect(() => {
-    api<{ sucesso: boolean; grupos: GrupoDestino[] }>('/whatsapp/grupos')
+    // Carregar grupos de destino
+    const carregarGrupos = api<{ sucesso: boolean; grupos: GrupoDestino[] }>('/whatsapp/grupos')
       .then((r) => {
         const destino = (r.grupos || []).filter((g) => g.papel === 'destino');
         setGrupos(destino);
         setSelecionados(new Set(destino.map((g) => g.group_jid)));
       })
-      .catch(() => {})
-      .finally(() => setCarregando(false));
-  }, []);
+      .catch(() => {});
+
+    // Para ML: gerar/renovar link de afiliado em paralelo
+    const gerarLink = oferta.plataforma === 'mercadolivre'
+      ? (async () => {
+          setGerandoLink(true);
+          try {
+            const r = await api<{ sucesso: boolean; linkAfiliado: string | null }>(
+              `/ofertas/${oferta.id}/gerar-link-afiliado`, { method: 'POST' }
+            );
+            if (r.sucesso && r.linkAfiliado) {
+              // Substituir o link na legenda pelo link de afiliado fresco
+              setLegenda((prev) => {
+                const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
+                return linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev;
+              });
+            } else {
+              setAvisoLink('Não foi possível gerar o link de afiliado. Verifique os cookies do ML.');
+            }
+          } catch {
+            setAvisoLink('Erro ao gerar link de afiliado ML.');
+          } finally {
+            setGerandoLink(false);
+          }
+        })()
+      : Promise.resolve();
+
+    Promise.all([carregarGrupos, gerarLink]).finally(() => setCarregando(false));
+  }, [oferta]);
 
   function toggleGrupo(jid: string) {
     setSelecionados((prev) => {
@@ -430,7 +459,15 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
 
           {/* Legenda editável */}
           <div>
-            <label className="label">Legenda <span className="text-gray-400 font-normal">(editável)</span></label>
+            <label className="label flex items-center gap-2">
+              Legenda
+              <span className="text-gray-400 font-normal">(editável)</span>
+              {gerandoLink && (
+                <span className="flex items-center gap-1 text-xs text-brand-600">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Gerando link de afiliado...
+                </span>
+              )}
+            </label>
             <textarea
               value={legenda}
               onChange={(e) => setLegenda(e.target.value)}
@@ -440,6 +477,9 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
             <p className="text-xs text-gray-400 mt-1">
               Use *texto* para negrito e _texto_ para itálico no WhatsApp.
             </p>
+            {avisoLink && (
+              <p className="text-xs text-amber-600 mt-1">⚠️ {avisoLink}</p>
+            )}
           </div>
 
           {/* Grupos de destino */}
