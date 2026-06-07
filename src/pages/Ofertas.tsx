@@ -32,6 +32,14 @@ interface Categoria { id: number; nome: string; total: number; plataforma?: stri
 interface Paginacao  { total: number; pagina: number; limite: number; totalPaginas: number; }
 interface GrupoDestino { id: string; group_jid: string; nome: string; papel: string; nicho: string; }
 interface TelegramConfig { botToken: string; chatIds: string[]; status: string; }
+interface SyncResumo {
+  plataforma: string;
+  totalNovos: number;
+  totalIgnorados: number;
+  totalUnicos?: number;
+  detalhes?: { fonte: string; encontrados: number }[];
+  erros?: string[];
+}
 
 const LIMITE = 24;
 
@@ -75,6 +83,7 @@ export default function Ofertas() {
   const [syncingML, setSyncingML] = useState(false);
   const [msg, setMsg]             = useState('');
   const [erro, setErro]           = useState('');
+  const [syncResumo, setSyncResumo] = useState<SyncResumo | null>(null);
 
   // Modal de envio
   const [modalOferta, setModalOferta] = useState<Oferta | null>(null);
@@ -100,20 +109,22 @@ export default function Ofertas() {
   }, [pagina, catFiltro, statusFiltro, platFiltro]);
 
   async function sincronizar() {
-    setSyncing(true); setErro(''); setMsg('');
+    setSyncing(true); setErro(''); setMsg(''); setSyncResumo(null);
     try {
-      const r = await api<{ sucesso: boolean; totalNovos: number }>('/ofertas/sincronizar', { method: 'POST' });
-      setMsg(`Shopee: ${r.totalNovos} novas ofertas adicionadas.`);
+      const r = await api<{ sucesso: boolean } & SyncResumo>('/ofertas/sincronizar', { method: 'POST' });
+      setMsg(`Shopee: ${r.totalNovos} novas ofertas adicionadas${r.totalUnicos != null ? ` (${r.totalUnicos} únicas encontradas)` : ''}.`);
+      setSyncResumo(r);
       setPagina(1); await carregar();
     } catch (e) { setErro((e as Error).message || 'Erro ao sincronizar Shopee'); }
     finally { setSyncing(false); }
   }
 
   async function sincronizarML() {
-    setSyncingML(true); setErro(''); setMsg('');
+    setSyncingML(true); setErro(''); setMsg(''); setSyncResumo(null);
     try {
-      const r = await api<{ sucesso: boolean; totalNovos: number }>('/ofertas/sincronizar/mercadolivre', { method: 'POST' });
+      const r = await api<{ sucesso: boolean } & SyncResumo>('/ofertas/sincronizar/mercadolivre', { method: 'POST' });
       setMsg(`Mercado Livre: ${r.totalNovos} novas ofertas adicionadas.`);
+      setSyncResumo(r);
       setPagina(1); await carregar();
     } catch (e) { setErro((e as Error).message || 'Erro ao sincronizar Mercado Livre'); }
     finally { setSyncingML(false); }
@@ -150,6 +161,10 @@ export default function Ofertas() {
 
       <Alert message={erro} />
       <Alert message={msg} type="success" />
+
+      {syncResumo && (
+        <SyncResumoCard resumo={syncResumo} onFechar={() => setSyncResumo(null)} />
+      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -241,6 +256,63 @@ export default function Ofertas() {
         />
       )}
     </>
+  );
+}
+
+// ─── Resumo da sincronização ──────────────────────────────────────
+
+function SyncResumoCard({ resumo, onFechar }: { resumo: SyncResumo; onFechar: () => void }) {
+  const plat = resumo.plataforma === 'shopee' ? '🟠 Shopee' : '🟡 Mercado Livre';
+  return (
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-sm text-gray-800">
+          Resumo da sincronização · {plat}
+        </h3>
+        <button onClick={onFechar} className="text-gray-400 hover:text-gray-600">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        <span className="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-medium">
+          {resumo.totalNovos} novas
+        </span>
+        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium">
+          {resumo.totalIgnorados} ignoradas/atualizadas
+        </span>
+        {resumo.totalUnicos != null && (
+          <span className="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 text-xs font-medium">
+            {resumo.totalUnicos} únicas encontradas
+          </span>
+        )}
+      </div>
+
+      {resumo.detalhes && resumo.detalhes.length > 0 && (
+        <div className="mb-2">
+          <p className="text-xs text-gray-400 mb-1.5">Produtos por fonte</p>
+          <div className="flex flex-wrap gap-1.5">
+            {resumo.detalhes.map((d) => (
+              <span key={d.fonte}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                  d.encontrados > 0 ? 'bg-gray-100 text-gray-600' : 'bg-amber-50 text-amber-600'
+                }`}>
+                {d.fonte}: {d.encontrados}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {resumo.erros && resumo.erros.length > 0 && (
+        <div className="mt-2">
+          <p className="text-xs text-red-500 mb-1">Erros ({resumo.erros.length})</p>
+          <ul className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2 space-y-0.5 max-h-32 overflow-y-auto list-disc list-inside">
+            {resumo.erros.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
