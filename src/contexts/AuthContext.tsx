@@ -15,7 +15,7 @@ interface AuthCtx {
   carregando: boolean;
   entrar:    (email: string, senha: string) => Promise<void>;
   registrar: (nome: string, email: string, senha: string) => Promise<void>;
-  sair:      () => void;
+  sair:      () => Promise<void>;
   recarregar: () => Promise<void>;
 }
 
@@ -59,9 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUsuario(data.usuario);
   }
 
-  function sair() {
+  async function sair() {
+    // Chama o backend para limpar o cookie HttpOnly de autenticação
+    try {
+      await api('/auth/sair', { method: 'POST' }, false);
+    } catch { /* ignora erros — desloga localmente de qualquer forma */ }
     setUsuario(null);
-    // Cookie HttpOnly é removido pelo backend — só redirecionar
     window.location.href = '/login';
   }
 
