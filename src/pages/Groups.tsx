@@ -255,7 +255,7 @@ function ColunaGrupos({ titulo, descricao, grupos, selecionados, onToggle, onNic
                       {g.group_name || 'Grupo sem nome'}
                     </p>
                     {!apenasAdmin && g.is_admin && (
-                      <ShieldCheck className="w-3.5 h-3.5 text-green-500 shrink-0" title="Você é admin" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-green-500 shrink-0" />
                     )}
                   </div>
                   {g.participants_count != null && (
