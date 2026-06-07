@@ -47,15 +47,16 @@ function gerarLegenda(o: Oferta): string {
   const prep = o.plataforma === 'shopee' ? 'na' : 'no';
   const link = o.link_afiliado || o.link_produto || '';
 
-  // Preço sem casas decimais desnecessárias (R$ 42 em vez de R$ 42,00)
-  const precoStr = o.preco % 1 === 0
-    ? `R$ ${o.preco.toFixed(0)}`
-    : formatPreco(o.preco);
+  // parseFloat garante que NUMERIC do PostgreSQL (retornado como string) seja tratado como número
+  const preco = parseFloat(String(o.preco));
+  const precoStr = preco % 1 === 0
+    ? `R$ ${preco.toFixed(0)}`
+    : formatPreco(preco);
 
   if (o.desconto_pct) {
-    return `🔥 *${o.nome}*\n_Vendido ${prep} ${plat}_ · *-${o.desconto_pct}% OFF*\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
+    return `🔥 *${o.nome}*\n\n_Vendido ${prep} ${plat}_ · *-${o.desconto_pct}% OFF*\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
   }
-  return `🛍️ *${o.nome}*\n_Vendido ${prep} ${plat}_\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
+  return `🛍️ *${o.nome}*\n\n_Vendido ${prep} ${plat}_\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
 }
 
 // ─── Página principal ─────────────────────────────────────────────
