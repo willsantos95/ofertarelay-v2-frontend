@@ -6,7 +6,7 @@ import Alert from '../components/Alert';
 
 type AffPayload = {
   amazon:       { tag: string; cookies: string };
-  mercadoLivre: { tag: string; cookies: string; csrfToken: string; urls: string };
+  mercadoLivre: { tag: string; cookies: string; urls: string };
   shopee:       { appId: string; appSecret: string };
   magalu:       { magazineId: string };
   aliexpress:   { apiKey: string; apiSecret: string; trackingId: string };
@@ -14,7 +14,7 @@ type AffPayload = {
 
 const EMPTY: AffPayload = {
   amazon:       { tag: '', cookies: '' },
-  mercadoLivre: { tag: '', cookies: '', csrfToken: '', urls: '' },
+  mercadoLivre: { tag: '', cookies: '', urls: '' },
   shopee:       { appId: '', appSecret: '' },
   magalu:       { magazineId: '' },
   aliexpress:   { apiKey: '', apiSecret: '', trackingId: '' },
@@ -101,15 +101,6 @@ export default function AffiliateSettings() {
         <PlatCard titulo="🛒 Mercado Livre">
           <Field label="Tag de afiliado" value={form.mercadoLivre.tag} onChange={(v) => set('mercadoLivre', 'tag', v)} placeholder="ex: GT20240630184403" />
           <Field label="Cookies" value={form.mercadoLivre.cookies} onChange={(v) => set('mercadoLivre', 'cookies', v)} type="password" placeholder="Cole seus cookies do navegador (F12 → Network → header Cookie)" />
-          <div>
-            <label className="label">
-              x-csrf-token
-              <span className="text-gray-400 font-normal ml-1">(F12 → Network → qualquer req para mercadolivre.com.br → header x-csrf-token)</span>
-            </label>
-            <input type="password" className="input" value={form.mercadoLivre.csrfToken}
-              onChange={(e) => set('mercadoLivre', 'csrfToken', e.target.value)}
-              placeholder="Cole o valor do header x-csrf-token" />
-          </div>
           <div>
             <label className="label">URLs para buscar ofertas <span className="text-gray-400 font-normal">(uma por linha)</span></label>
             <textarea
