@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Loader2, Play, Pause, Save, Trash2, CheckSquare, Square, MessageCircle,
-  Clock, CheckCircle2, AlertCircle, ShoppingBag, RefreshCw,
+  Clock, CheckCircle2, AlertCircle, ShoppingBag, RefreshCw, Pencil,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
@@ -38,6 +38,22 @@ export default function Agendamento() {
   const [saving, setSaving]   = useState(false);
   const [msg, setMsg]   = useState('');
   const [erro, setErro] = useState('');
+
+  // Edição de legenda de um item
+  const [editId, setEditId]       = useState<string | null>(null);
+  const [editTexto, setEditTexto] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function iniciarEdicao(it: ItemFila) { setEditId(it.id); setEditTexto(it.legenda); }
+  async function salvarEdicao() {
+    if (!editId) return;
+    setSavingEdit(true);
+    try {
+      await api(`/agendamento/itens/${editId}`, { method: 'PATCH', body: JSON.stringify({ legenda: editTexto }) });
+      setEditId(null); await carregarItens();
+    } catch (e) { setErro((e as Error).message); }
+    finally { setSavingEdit(false); }
+  }
 
   const carregarItens = useCallback(async () => {
     try {
@@ -248,25 +264,52 @@ export default function Agendamento() {
           ) : (
             <div className="space-y-2">
               {itens.map((it) => (
-                <div key={it.id} className="card p-3 flex items-center gap-3">
-                  {it.imagem_url ? (
-                    <img src={it.imagem_url} alt={it.nome} className="w-12 h-12 object-cover rounded-lg shrink-0" />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                      <ShoppingBag className="w-5 h-5 text-gray-400" />
+                <div key={it.id} className="card p-3">
+                  <div className="flex items-center gap-3">
+                    {it.imagem_url ? (
+                      <img src={it.imagem_url} alt={it.nome} className="w-12 h-12 object-cover rounded-lg shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                        <ShoppingBag className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-800 line-clamp-1">{it.nome}</p>
+                      <p className="text-sm font-bold text-brand-600">{formatPreco(it.preco)}</p>
+                      {it.status === 'erro' && it.erro && (
+                        <p className="text-[11px] text-red-500 line-clamp-1">{it.erro}</p>
+                      )}
+                    </div>
+                    <StatusBadge status={it.status} />
+                    {it.status === 'pendente' && (
+                      <button onClick={() => (editId === it.id ? setEditId(null) : iniciarEdicao(it))}
+                        title="Editar legenda"
+                        className="text-gray-300 hover:text-brand-600 shrink-0">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => removerItem(it.id)} className="text-gray-300 hover:text-red-500 shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {editId === it.id && (
+                    <div className="mt-3">
+                      <textarea
+                        value={editTexto}
+                        onChange={(e) => setEditTexto(e.target.value)}
+                        rows={5}
+                        className="input font-mono text-xs resize-none"
+                      />
+                      <div className="flex gap-2 mt-2 justify-end">
+                        <button onClick={() => setEditId(null)} className="btn btn-outline py-1.5 px-3 text-sm">Cancelar</button>
+                        <button onClick={salvarEdicao} disabled={savingEdit} className="btn btn-primary py-1.5 px-3 text-sm">
+                          {savingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Salvar legenda
+                        </button>
+                      </div>
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 line-clamp-1">{it.nome}</p>
-                    <p className="text-sm font-bold text-brand-600">{formatPreco(it.preco)}</p>
-                    {it.status === 'erro' && it.erro && (
-                      <p className="text-[11px] text-red-500 line-clamp-1">{it.erro}</p>
-                    )}
-                  </div>
-                  <StatusBadge status={it.status} />
-                  <button onClick={() => removerItem(it.id)} className="text-gray-300 hover:text-red-500 shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
               ))}
             </div>

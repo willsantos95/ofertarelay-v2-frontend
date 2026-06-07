@@ -489,6 +489,23 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
   // IA
   const [melhorandoIA, setMelhorandoIA] = useState(false);
   const [erroIA, setErroIA]             = useState('');
+  // Fila
+  const [addFila, setAddFila]       = useState(false);
+  const [addFilaMsg, setAddFilaMsg] = useState('');
+
+  async function adicionarAFila() {
+    setAddFila(true); setAddFilaMsg('');
+    try {
+      await api('/agendamento/itens', {
+        method: 'POST',
+        body: JSON.stringify({ itens: [{ ofertaId: oferta.id, legenda }] }),
+      });
+      setAddFilaMsg('Adicionada à fila de agendamento ✓');
+      setTimeout(onEnviou, 1000);
+    } catch (e) {
+      setAddFilaMsg((e as Error).message || 'Erro ao adicionar à fila');
+    } finally { setAddFila(false); }
+  }
 
   async function melhorarComIA() {
     setMelhorandoIA(true); setErroIA('');
@@ -763,21 +780,27 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
-          <button onClick={onFechar} className="btn btn-outline flex-1">Cancelar</button>
-          <button
-            onClick={enviar}
-            disabled={enviando || !temDestino || carregando}
-            className="btn btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600 disabled:opacity-40"
-          >
-            {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {enviando ? 'Enviando...' : (() => {
-              const partes = [];
-              if (selecionados.size > 0) partes.push(`${selecionados.size} grupo${selecionados.size > 1 ? 's' : ''} WA`);
-              if (enviarTelegram && telegram) partes.push('Telegram');
-              return partes.length > 0 ? `Enviar → ${partes.join(' + ')}` : 'Selecione um destino';
-            })()}
-          </button>
+        <div className="px-5 py-4 border-t border-gray-100 space-y-2">
+          {addFilaMsg && <p className="text-xs text-center text-gray-600">{addFilaMsg}</p>}
+          <div className="flex gap-2">
+            <button onClick={onFechar} className="btn btn-outline">Cancelar</button>
+            <button
+              onClick={adicionarAFila}
+              disabled={addFila || carregando}
+              className="btn btn-outline flex-1 text-brand-700 border-brand-200 hover:bg-brand-50 disabled:opacity-40"
+            >
+              {addFila ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+              Adicionar à fila
+            </button>
+            <button
+              onClick={enviar}
+              disabled={enviando || !temDestino || carregando}
+              className="btn btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600 disabled:opacity-40"
+            >
+              {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {enviando ? 'Enviando...' : 'Enviar agora'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
