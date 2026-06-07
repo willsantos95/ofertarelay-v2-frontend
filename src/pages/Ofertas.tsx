@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight,
-  ShoppingBag, Store, Send, X, CheckSquare, Square,
+  ShoppingBag, Store, Send, X, CheckSquare, Square, MessageCircle,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
@@ -31,6 +31,7 @@ interface Oferta {
 interface Categoria { id: number; nome: string; total: number; plataforma?: string; }
 interface Paginacao  { total: number; pagina: number; limite: number; totalPaginas: number; }
 interface GrupoDestino { id: string; group_jid: string; nome: string; papel: string; nicho: string; }
+interface TelegramConfig { botToken: string; chatIds: string[]; status: string; }
 
 const LIMITE = 24;
 
@@ -341,16 +342,21 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
   oferta: Oferta; onFechar: () => void; onEnviou: () => void;
 }) {
   const [legenda, setLegenda]           = useState(() => gerarLegenda(oferta));
+  // WhatsApp
   const [grupos, setGrupos]             = useState<GrupoDestino[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-  const [carregando, setCarregando]     = useState(true);  // carrega grupos + link
+  // Telegram
+  const [telegram, setTelegram]         = useState<TelegramConfig | null>(null);
+  const [enviarTelegram, setEnviarTelegram] = useState(false);
+  // Estado geral
+  const [carregando, setCarregando]     = useState(true);
   const [gerandoLink, setGerandoLink]   = useState(false);
   const [avisoLink, setAvisoLink]       = useState('');
   const [enviando, setEnviando]         = useState(false);
-  const [resultado, setResultado]       = useState<{ enviados: number; erros: string[] } | null>(null);
+  const [resultado, setResultado]       = useState<{ wa: number; tg: number; erros: string[] } | null>(null);
 
   useEffect(() => {
-    // Carregar grupos de destino
+    // 1. Grupos WhatsApp de destino
     const carregarGrupos = api<{ sucesso: boolean; grupos: GrupoDestino[] }>('/whatsapp/grupos')
       .then((r) => {
         const destino = (r.grupos || []).filter((g) => g.papel === 'destino');
@@ -359,7 +365,18 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
       })
       .catch(() => {});
 
-    // Para ML: gerar/renovar link de afiliado em paralelo
+    // 2. Configurações Telegram
+    const carregarTelegram = api<{ sucesso: boolean; setting: { payload: TelegramConfig } }>('/settings/telegram')
+      .then((r) => {
+        const cfg = r.setting?.payload;
+        if (cfg?.status === 'active' && cfg.chatIds?.length > 0) {
+          setTelegram(cfg);
+          setEnviarTelegram(true); // pré-selecionar se ativo
+        }
+      })
+      .catch(() => {});
+
+    // 3. Para ML: gerar link de afiliado em paralelo
     const gerarLink = oferta.plataforma === 'mercadolivre'
       ? (async () => {
           setGerandoLink(true);
@@ -368,7 +385,6 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
               `/ofertas/${oferta.id}/gerar-link-afiliado`, { method: 'POST' }
             );
             if (r.sucesso && r.linkAfiliado) {
-              // Substituir o link na legenda pelo link de afiliado fresco
               setLegenda((prev) => {
                 const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
                 return linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev;
@@ -384,7 +400,7 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
         })()
       : Promise.resolve();
 
-    Promise.all([carregarGrupos, gerarLink]).finally(() => setCarregando(false));
+    Promise.all([carregarGrupos, carregarTelegram, gerarLink]).finally(() => setCarregando(false));
   }, [oferta]);
 
   function toggleGrupo(jid: string) {
@@ -403,22 +419,47 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
     }
   }
 
+  const temDestino = selecionados.size > 0 || enviarTelegram;
+
   async function enviar() {
-    if (!selecionados.size) return;
+    if (!temDestino) return;
     setEnviando(true); setResultado(null);
-    try {
-      const r = await api<{ sucesso: boolean; enviados: number; erros: string[] }>(
-        `/ofertas/${oferta.id}/enviar-whatsapp`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ legenda, grupos: [...selecionados] }),
-        }
-      );
-      setResultado({ enviados: r.enviados, erros: r.erros || [] });
-      if (r.enviados > 0) setTimeout(onEnviou, 1500);
-    } catch (e) {
-      setResultado({ enviados: 0, erros: [(e as Error).message] });
-    } finally { setEnviando(false); }
+
+    let waEnviados = 0;
+    let tgEnviados = 0;
+    const todosErros: string[] = [];
+
+    // Enviar WhatsApp (se houver grupos selecionados)
+    if (selecionados.size > 0) {
+      try {
+        const r = await api<{ sucesso: boolean; enviados: number; erros: string[] }>(
+          `/ofertas/${oferta.id}/enviar-whatsapp`,
+          { method: 'POST', body: JSON.stringify({ legenda, grupos: [...selecionados] }) }
+        );
+        waEnviados = r.enviados || 0;
+        if (r.erros?.length) todosErros.push(...r.erros.map(e => `WA: ${e}`));
+      } catch (e) {
+        todosErros.push(`WhatsApp: ${(e as Error).message}`);
+      }
+    }
+
+    // Enviar Telegram (se marcado)
+    if (enviarTelegram && telegram) {
+      try {
+        const r = await api<{ sucesso: boolean; enviados: number; erros: string[] }>(
+          `/ofertas/${oferta.id}/enviar-telegram`,
+          { method: 'POST', body: JSON.stringify({ legenda }) }
+        );
+        tgEnviados = r.enviados || 0;
+        if (r.erros?.length) todosErros.push(...r.erros.map(e => `TG: ${e}`));
+      } catch (e) {
+        todosErros.push(`Telegram: ${(e as Error).message}`);
+      }
+    }
+
+    setResultado({ wa: waEnviados, tg: tgEnviados, erros: todosErros });
+    if (waEnviados > 0 || tgEnviados > 0) setTimeout(onEnviou, 1800);
+    setEnviando(false);
   }
 
   return (
@@ -482,10 +523,12 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
             )}
           </div>
 
-          {/* Grupos de destino */}
+          {/* WhatsApp — grupos de destino */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="label mb-0">Grupos de destino</label>
+              <label className="label mb-0 flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-green-600" /> WhatsApp
+              </label>
               {grupos.length > 0 && (
                 <button onClick={toggleTodos} className="text-xs text-brand-600 hover:underline">
                   {selecionados.size === grupos.length ? 'Desmarcar todos' : 'Selecionar todos'}
@@ -494,13 +537,13 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
             </div>
 
             {carregando ? (
-              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
+              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
             ) : grupos.length === 0 ? (
-              <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
                 Nenhum grupo de destino configurado. Configure na página <strong>Grupos</strong>.
               </p>
             ) : (
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-36 overflow-y-auto">
                 {grupos.map((g) => {
                   const sel = selecionados.has(g.group_jid);
                   return (
@@ -519,12 +562,36 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
             )}
           </div>
 
+          {/* Telegram — exibir apenas se configurado e ativo */}
+          {telegram && (
+            <div>
+              <button
+                onClick={() => setEnviarTelegram((v) => !v)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                  enviarTelegram ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
+                }`}>
+                {enviarTelegram
+                  ? <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                  : <Square className="w-4 h-4 text-gray-300 shrink-0" />}
+                <MessageCircle className="w-4 h-4 text-blue-500 shrink-0" />
+                <div className="text-left">
+                  <p className="text-sm font-medium text-gray-800">Telegram</p>
+                  <p className="text-xs text-gray-500">
+                    {telegram.chatIds.length} canal{telegram.chatIds.length !== 1 ? 'is' : ''} configurado{telegram.chatIds.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </button>
+            </div>
+          )}
+
           {/* Resultado */}
           {resultado && (
-            <div className={`rounded-xl px-3 py-2 text-sm ${resultado.enviados > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-              {resultado.enviados > 0
-                ? `✓ Enviado para ${resultado.enviados} grupo${resultado.enviados > 1 ? 's' : ''}!`
-                : 'Erro ao enviar.'}
+            <div className={`rounded-xl px-3 py-2 text-sm ${
+              resultado.wa > 0 || resultado.tg > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+            }`}>
+              {resultado.wa > 0 && <p>✓ WhatsApp: {resultado.wa} grupo{resultado.wa > 1 ? 's' : ''}</p>}
+              {resultado.tg > 0 && <p>✓ Telegram: {resultado.tg} canal{resultado.tg > 1 ? 'is' : ''}</p>}
+              {resultado.wa === 0 && resultado.tg === 0 && <p>Erro ao enviar.</p>}
               {resultado.erros.length > 0 && (
                 <ul className="mt-1 text-xs opacity-70 list-disc list-inside">
                   {resultado.erros.slice(0, 3).map((e, i) => <li key={i}>{e}</li>)}
@@ -539,13 +606,16 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
           <button onClick={onFechar} className="btn btn-outline flex-1">Cancelar</button>
           <button
             onClick={enviar}
-            disabled={enviando || !selecionados.size || carregando}
+            disabled={enviando || !temDestino || carregando}
             className="btn btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600 disabled:opacity-40"
           >
             {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {enviando
-              ? 'Enviando...'
-              : `Enviar para ${selecionados.size} grupo${selecionados.size !== 1 ? 's' : ''}`}
+            {enviando ? 'Enviando...' : (() => {
+              const partes = [];
+              if (selecionados.size > 0) partes.push(`${selecionados.size} grupo${selecionados.size > 1 ? 's' : ''} WA`);
+              if (enviarTelegram && telegram) partes.push('Telegram');
+              return partes.length > 0 ? `Enviar → ${partes.join(' + ')}` : 'Selecione um destino';
+            })()}
           </button>
         </div>
       </div>
