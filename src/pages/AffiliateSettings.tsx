@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Save, Loader2, Info } from 'lucide-react';
+import { Save, Loader2, Info, ClipboardList } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
 import Alert from '../components/Alert';
@@ -77,10 +78,15 @@ export default function AffiliateSettings() {
         title="Configurações de Afiliado"
         subtitle="Credenciais usadas para gerar links de afiliado automaticamente"
         action={
-          <button onClick={salvar} disabled={saving} className="btn btn-primary">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar
-          </button>
+          <div className="flex gap-2">
+            <Link to="/affiliate/logs" className="btn btn-outline">
+              <ClipboardList className="w-4 h-4" /> Ver Logs
+            </Link>
+            <button onClick={salvar} disabled={saving} className="btn btn-primary">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Salvar
+            </button>
+          </div>
         }
       />
 

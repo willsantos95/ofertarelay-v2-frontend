@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import WhatsAppSettings from './pages/WhatsAppSettings';
 import Groups from './pages/Groups';
 import AffiliateSettings from './pages/AffiliateSettings';
+import AfiliadoLogs from './pages/AfiliadoLogs';
 import TelegramSettings from './pages/TelegramSettings';
 import Billing from './pages/Billing';
 import RelayLogs from './pages/RelayLogs';
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="whatsapp"      element={<WhatsAppSettings />} />
         <Route path="groups"        element={<Groups />} />
         <Route path="affiliate"     element={<AffiliateSettings />} />
+        <Route path="affiliate/logs" element={<AfiliadoLogs />} />
         <Route path="telegram"      element={<TelegramSettings />} />
         <Route path="billing"       element={<Billing />} />
         <Route path="billing/success" element={<Billing />} />
