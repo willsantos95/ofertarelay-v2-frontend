@@ -1,8 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
-import { RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight, ShoppingBag, Store } from 'lucide-react';
+import {
+  RefreshCw, Loader2, ExternalLink, Tag, ChevronLeft, ChevronRight,
+  ShoppingBag, Store, Send, X, CheckSquare, Square,
+} from 'lucide-react';
 import { api } from '../lib/api';
 import PageHeader from '../components/PageHeader';
 import Alert from '../components/Alert';
+
+// ─── Interfaces ───────────────────────────────────────────────────
 
 interface Oferta {
   id: string;
@@ -23,28 +28,36 @@ interface Oferta {
   criado_em: string;
 }
 
-interface Categoria {
-  id: number;
-  nome: string;
-  total: number;
-}
-
-interface Paginacao {
-  total: number;
-  pagina: number;
-  limite: number;
-  totalPaginas: number;
-}
+interface Categoria { id: number; nome: string; total: number; }
+interface Paginacao  { total: number; pagina: number; limite: number; totalPaginas: number; }
+interface GrupoDestino { id: string; group_jid: string; nome: string; papel: string; nicho: string; }
 
 const LIMITE = 24;
+
+// ─── Helpers ──────────────────────────────────────────────────────
 
 function formatPreco(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+function formatComissao(v: number) { return `${(v * 100).toFixed(0)}%`; }
 
-function formatComissao(v: number) {
-  return `${(v * 100).toFixed(0)}%`;
+function gerarLegenda(o: Oferta): string {
+  const plat = o.plataforma === 'shopee' ? 'Shopee' : 'Mercado Livre';
+  const prep = o.plataforma === 'shopee' ? 'na' : 'no';
+  const link = o.link_afiliado || o.link_produto || '';
+
+  // Preço sem casas decimais desnecessárias (R$ 42 em vez de R$ 42,00)
+  const precoStr = o.preco % 1 === 0
+    ? `R$ ${o.preco.toFixed(0)}`
+    : formatPreco(o.preco);
+
+  if (o.desconto_pct) {
+    return `🔥 *${o.nome}*\n_Vendido ${prep} ${plat}_ · *-${o.desconto_pct}% OFF*\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
+  }
+  return `🛍️ *${o.nome}*\n_Vendido ${prep} ${plat}_\n\n💰 Por *${precoStr}*\n🛒 ${link}`;
 }
+
+// ─── Página principal ─────────────────────────────────────────────
 
 export default function Ofertas() {
   const [ofertas, setOfertas]       = useState<Oferta[]>([]);
@@ -54,12 +67,15 @@ export default function Ofertas() {
   const [catFiltro, setCatFiltro]       = useState<number | null>(null);
   const [statusFiltro, setStatusFiltro] = useState<string>('');
   const [platFiltro, setPlatFiltro]     = useState<string>('');
-  const [syncingML, setSyncingML]       = useState(false);
 
   const [loading, setLoading]   = useState(true);
   const [syncing, setSyncing]   = useState(false);
-  const [msg, setMsg]           = useState('');
-  const [erro, setErro]         = useState('');
+  const [syncingML, setSyncingML] = useState(false);
+  const [msg, setMsg]             = useState('');
+  const [erro, setErro]           = useState('');
+
+  // Modal de envio
+  const [modalOferta, setModalOferta] = useState<Oferta | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -73,15 +89,12 @@ export default function Ofertas() {
         api<{ sucesso: boolean; ofertas: Oferta[]; paginacao: Paginacao }>(`/ofertas?${params}`),
         api<{ sucesso: boolean; categorias: Categoria[] }>('/ofertas/categorias'),
       ]);
-
       setOfertas(resOfertas.ofertas || []);
       setPaginacao(resOfertas.paginacao);
       setCategorias(resCats.categorias || []);
     } catch (e) {
       setErro((e as Error).message || 'Erro ao carregar ofertas');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [pagina, catFiltro, statusFiltro, platFiltro]);
 
   async function sincronizar() {
@@ -104,27 +117,21 @@ export default function Ofertas() {
     finally { setSyncingML(false); }
   }
 
-  useEffect(() => { carregar(); }, [carregar]);
-
   function mudarPagina(nova: number) {
-    if (!paginacao) return;
-    if (nova < 1 || nova > paginacao.totalPaginas) return;
+    if (!paginacao || nova < 1 || nova > paginacao.totalPaginas) return;
     setPagina(nova);
   }
+  function mudarCategoria(id: number | null) { setCatFiltro(id); setPagina(1); }
+  function mudarStatus(s: string)             { setStatusFiltro(s); setPagina(1); }
+  function mudarPlat(p: string)               { setPlatFiltro(p);  setPagina(1); }
 
-  function mudarCategoria(id: number | null) {
-    setCatFiltro(id);
-    setPagina(1);
-  }
-
-  function mudarStatus(s: string) { setStatusFiltro(s); setPagina(1); }
-  function mudarPlat(p: string)   { setPlatFiltro(p);  setPagina(1); }
+  useEffect(() => { carregar(); }, [carregar]);
 
   return (
     <>
       <PageHeader
         title="Ofertas"
-        subtitle="Ofertas da Shopee disponíveis para enviar nos grupos de WhatsApp"
+        subtitle="Ofertas disponíveis para enviar nos grupos de WhatsApp"
         action={
           <div className="flex gap-2">
             <button onClick={sincronizar} disabled={syncing} className="btn btn-outline">
@@ -144,69 +151,51 @@ export default function Ofertas() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {/* Filtro categoria */}
         <div className="flex flex-wrap gap-1.5">
-          <button
-            onClick={() => mudarCategoria(null)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              catFiltro === null ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
+          <button onClick={() => mudarCategoria(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!catFiltro ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             Todas
           </button>
           {categorias.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => mudarCategoria(c.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                catFiltro === c.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
+            <button key={`${c.nome}-${c.plataforma || ''}`} onClick={() => mudarCategoria(c.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${catFiltro === c.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {c.nome} <span className="opacity-70">({c.total})</span>
             </button>
           ))}
         </div>
 
-        {/* Filtro plataforma */}
         <div className="flex gap-1.5">
           {[['', '🛍️ Todas'], ['shopee', '🟠 Shopee'], ['mercadolivre', '🟡 Mercado Livre']].map(([val, label]) => (
             <button key={val} onClick={() => mudarPlat(val)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                platFiltro === val ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}>{label}</button>
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${platFiltro === val ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {label}
+            </button>
           ))}
         </div>
 
-        {/* Filtro status */}
         <div className="ml-auto flex gap-1.5">
           {[['', 'Todos'], ['pendente', 'Pendentes'], ['enviado', 'Enviados']].map(([val, label]) => (
             <button key={val} onClick={() => mudarStatus(val)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFiltro === val ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}>{label}</button>
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${statusFiltro === val ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {label}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Stats */}
       {paginacao && (
         <p className="text-xs text-gray-400 mb-4">
           {paginacao.total} oferta{paginacao.total !== 1 ? 's' : ''} encontrada{paginacao.total !== 1 ? 's' : ''}
         </p>
       )}
 
-      {/* Grid */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
+        <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
       ) : ofertas.length === 0 ? (
         <div className="card text-center py-16">
           <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm mb-1">Nenhuma oferta encontrada.</p>
-          <p className="text-gray-400 text-xs mb-5">
-            Configure SHOPEE_APP_ID e SHOPEE_SECRET e clique em "Sincronizar Shopee".
-          </p>
+          <p className="text-gray-400 text-xs mb-5">Configure suas credenciais e clique em Sincronizar.</p>
           <button onClick={sincronizar} disabled={syncing} className="btn btn-primary mx-auto">
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Sincronizar agora
@@ -216,39 +205,48 @@ export default function Ofertas() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {ofertas.map((o) => (
-              <OfertaCard key={o.id} oferta={o} onAtualizou={carregar} />
+              <OfertaCard
+                key={o.id}
+                oferta={o}
+                onAtualizou={carregar}
+                onEnviar={() => setModalOferta(o)}
+              />
             ))}
           </div>
 
-          {/* Paginação */}
           {paginacao && paginacao.totalPaginas > 1 && (
             <div className="flex items-center justify-center gap-2 mt-8">
-              <button
-                onClick={() => mudarPagina(pagina - 1)}
-                disabled={pagina <= 1}
-                className="btn btn-outline py-1.5 px-3 disabled:opacity-40"
-              >
+              <button onClick={() => mudarPagina(pagina - 1)} disabled={pagina <= 1}
+                className="btn btn-outline py-1.5 px-3 disabled:opacity-40">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm text-gray-600">
-                {pagina} / {paginacao.totalPaginas}
-              </span>
-              <button
-                onClick={() => mudarPagina(pagina + 1)}
-                disabled={pagina >= paginacao.totalPaginas}
-                className="btn btn-outline py-1.5 px-3 disabled:opacity-40"
-              >
+              <span className="text-sm text-gray-600">{pagina} / {paginacao.totalPaginas}</span>
+              <button onClick={() => mudarPagina(pagina + 1)} disabled={pagina >= paginacao.totalPaginas}
+                className="btn btn-outline py-1.5 px-3 disabled:opacity-40">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
         </>
       )}
+
+      {/* Modal de envio */}
+      {modalOferta && (
+        <EnviarOfertaModal
+          oferta={modalOferta}
+          onFechar={() => setModalOferta(null)}
+          onEnviou={() => { setModalOferta(null); carregar(); }}
+        />
+      )}
     </>
   );
 }
 
-function OfertaCard({ oferta: o, onAtualizou }: { oferta: Oferta; onAtualizou: () => void }) {
+// ─── Card de oferta ───────────────────────────────────────────────
+
+function OfertaCard({ oferta: o, onAtualizou, onEnviar }: {
+  oferta: Oferta; onAtualizou: () => void; onEnviar: () => void;
+}) {
   const [updating, setUpdating] = useState(false);
 
   async function marcarEnviado() {
@@ -259,29 +257,22 @@ function OfertaCard({ oferta: o, onAtualizou }: { oferta: Oferta; onAtualizou: (
         body: JSON.stringify({ status: o.status === 'enviado' ? 'pendente' : 'enviado' }),
       });
       onAtualizou();
-    } catch { /* ignora */ } finally {
-      setUpdating(false);
-    }
+    } catch { /* ignora */ } finally { setUpdating(false); }
   }
 
   return (
     <div className="card p-0 overflow-hidden flex flex-col group">
-      {/* Imagem */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
         {o.imagem_url ? (
-          <img
-            src={o.imagem_url}
-            alt={o.nome}
+          <img src={o.imagem_url} alt={o.nome}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+            loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ShoppingBag className="w-10 h-10 text-gray-300" />
           </div>
         )}
 
-        {/* Badge comissão (Shopee) ou desconto (ML) */}
         {o.taxa_comissao != null && (
           <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
             {formatComissao(o.taxa_comissao)} comissão
@@ -292,60 +283,229 @@ function OfertaCard({ oferta: o, onAtualizou }: { oferta: Oferta; onAtualizou: (
             -{o.desconto_pct}% OFF
           </span>
         )}
-        {/* Badge plataforma */}
         <span className={`absolute top-2 left-2 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-          o.plataforma === 'shopee' ? 'bg-orange-500' : 'bg-yellow-500'
+          o.plataforma === 'shopee' ? 'bg-orange-500' : 'bg-yellow-600'
         }`}>
           {o.plataforma === 'shopee' ? 'Shopee' : 'ML'}
         </span>
-
-        {/* Badge status */}
         {o.status === 'enviado' && (
-          <span className="absolute top-2 left-2 bg-gray-800 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full">
-            Enviado
-          </span>
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+            <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">✓ Enviado</span>
+          </div>
         )}
       </div>
 
-      {/* Info */}
       <div className="p-3 flex flex-col flex-1 gap-2">
         <p className="text-xs text-gray-400 flex items-center gap-1">
-          <Tag className="w-3 h-3" />
-          {o.categoria_nome}
+          <Tag className="w-3 h-3" />{o.categoria_nome}
         </p>
-
-        <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug flex-1">
-          {o.nome}
-        </p>
+        <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug flex-1">{o.nome}</p>
 
         {o.preco_original != null && (
           <p className="text-xs text-gray-400 line-through">{formatPreco(o.preco_original)}</p>
         )}
         <p className="text-lg font-bold text-brand-600">{formatPreco(o.preco)}</p>
 
-        {/* Ações */}
-        <div className="flex gap-2 mt-1">
+        <div className="flex gap-1.5 mt-1">
           {o.link_afiliado && (
-            <a
-              href={o.link_afiliado}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
-            >
-              <ExternalLink className="w-3 h-3" />
-              Ver oferta
+            <a href={o.link_afiliado} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-brand-600 hover:underline shrink-0">
+              <ExternalLink className="w-3 h-3" />Ver
             </a>
           )}
-          <button
-            onClick={marcarEnviado}
-            disabled={updating}
+
+          {/* Botão enviar WhatsApp */}
+          <button onClick={onEnviar}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors shrink-0">
+            <Send className="w-3 h-3" />
+            Enviar
+          </button>
+
+          <button onClick={marcarEnviado} disabled={updating}
             className={`ml-auto text-xs px-2 py-1 rounded-lg font-medium transition-colors ${
               o.status === 'enviado'
                 ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
-            }`}
+            }`}>
+            {updating ? '...' : o.status === 'enviado' ? 'Reativar' : 'Pendente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de envio para WhatsApp ────────────────────────────────
+
+function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
+  oferta: Oferta; onFechar: () => void; onEnviou: () => void;
+}) {
+  const [legenda, setLegenda]         = useState(() => gerarLegenda(oferta));
+  const [grupos, setGrupos]           = useState<GrupoDestino[]>([]);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [carregando, setCarregando]   = useState(true);
+  const [enviando, setEnviando]       = useState(false);
+  const [resultado, setResultado]     = useState<{ enviados: number; erros: string[] } | null>(null);
+
+  useEffect(() => {
+    api<{ sucesso: boolean; grupos: GrupoDestino[] }>('/whatsapp/grupos')
+      .then((r) => {
+        const destino = (r.grupos || []).filter((g) => g.papel === 'destino');
+        setGrupos(destino);
+        setSelecionados(new Set(destino.map((g) => g.group_jid)));
+      })
+      .catch(() => {})
+      .finally(() => setCarregando(false));
+  }, []);
+
+  function toggleGrupo(jid: string) {
+    setSelecionados((prev) => {
+      const s = new Set(prev);
+      s.has(jid) ? s.delete(jid) : s.add(jid);
+      return s;
+    });
+  }
+
+  function toggleTodos() {
+    if (selecionados.size === grupos.length) {
+      setSelecionados(new Set());
+    } else {
+      setSelecionados(new Set(grupos.map((g) => g.group_jid)));
+    }
+  }
+
+  async function enviar() {
+    if (!selecionados.size) return;
+    setEnviando(true); setResultado(null);
+    try {
+      const r = await api<{ sucesso: boolean; enviados: number; erros: string[] }>(
+        `/ofertas/${oferta.id}/enviar-whatsapp`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ legenda, grupos: [...selecionados] }),
+        }
+      );
+      setResultado({ enviados: r.enviados, erros: r.erros || [] });
+      if (r.enviados > 0) setTimeout(onEnviou, 1500);
+    } catch (e) {
+      setResultado({ enviados: 0, erros: [(e as Error).message] });
+    } finally { setEnviando(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Send className="w-4 h-4 text-green-600" />
+            Enviar para WhatsApp
+          </h2>
+          <button onClick={onFechar} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {/* Preview do produto */}
+          <div className="flex gap-3 p-3 bg-gray-50 rounded-xl">
+            {oferta.imagem_url ? (
+              <img src={oferta.imagem_url} alt={oferta.nome}
+                className="w-16 h-16 object-cover rounded-lg shrink-0" />
+            ) : (
+              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-6 h-6 text-gray-400" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 line-clamp-2">{oferta.nome}</p>
+              <p className="text-base font-bold text-brand-600 mt-1">{formatPreco(oferta.preco)}</p>
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white ${
+                oferta.plataforma === 'shopee' ? 'bg-orange-500' : 'bg-yellow-600'
+              }`}>
+                {oferta.plataforma === 'shopee' ? 'Shopee' : 'Mercado Livre'}
+              </span>
+            </div>
+          </div>
+
+          {/* Legenda editável */}
+          <div>
+            <label className="label">Legenda <span className="text-gray-400 font-normal">(editável)</span></label>
+            <textarea
+              value={legenda}
+              onChange={(e) => setLegenda(e.target.value)}
+              rows={6}
+              className="input font-mono text-xs resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Use *texto* para negrito e _texto_ para itálico no WhatsApp.
+            </p>
+          </div>
+
+          {/* Grupos de destino */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="label mb-0">Grupos de destino</label>
+              {grupos.length > 0 && (
+                <button onClick={toggleTodos} className="text-xs text-brand-600 hover:underline">
+                  {selecionados.size === grupos.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+              )}
+            </div>
+
+            {carregando ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
+            ) : grupos.length === 0 ? (
+              <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+                Nenhum grupo de destino configurado. Configure na página <strong>Grupos</strong>.
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {grupos.map((g) => {
+                  const sel = selecionados.has(g.group_jid);
+                  return (
+                    <button key={g.group_jid} onClick={() => toggleGrupo(g.group_jid)}
+                      className={`w-full flex items-center gap-2 p-2 rounded-xl border text-left transition-colors ${
+                        sel ? 'border-green-300 bg-green-50' : 'border-gray-100 hover:bg-gray-50'
+                      }`}>
+                      {sel
+                        ? <CheckSquare className="w-4 h-4 text-green-600 shrink-0" />
+                        : <Square className="w-4 h-4 text-gray-300 shrink-0" />}
+                      <span className="text-sm text-gray-700 truncate">{g.nome || g.group_jid}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Resultado */}
+          {resultado && (
+            <div className={`rounded-xl px-3 py-2 text-sm ${resultado.enviados > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+              {resultado.enviados > 0
+                ? `✓ Enviado para ${resultado.enviados} grupo${resultado.enviados > 1 ? 's' : ''}!`
+                : 'Erro ao enviar.'}
+              {resultado.erros.length > 0 && (
+                <ul className="mt-1 text-xs opacity-70 list-disc list-inside">
+                  {resultado.erros.slice(0, 3).map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
+          <button onClick={onFechar} className="btn btn-outline flex-1">Cancelar</button>
+          <button
+            onClick={enviar}
+            disabled={enviando || !selecionados.size || carregando}
+            className="btn btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600 disabled:opacity-40"
           >
-            {updating ? '...' : o.status === 'enviado' ? 'Reativar' : 'Marcar enviado'}
+            {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {enviando
+              ? 'Enviando...'
+              : `Enviar para ${selecionados.size} grupo${selecionados.size !== 1 ? 's' : ''}`}
           </button>
         </div>
       </div>
