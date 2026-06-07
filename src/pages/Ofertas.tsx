@@ -455,20 +455,26 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
     const gerarLink = oferta.plataforma === 'mercadolivre'
       ? (async () => {
           setGerandoLink(true);
+          const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
+          // Em caso de falha, garante o link padrão do produto na legenda
+          const usarLinkProduto = () => {
+            if (oferta.link_produto && linkAtual && linkAtual !== oferta.link_produto) {
+              setLegenda((prev) => prev.replace(linkAtual, oferta.link_produto!));
+            }
+          };
           try {
             const r = await api<{ sucesso: boolean; linkAfiliado: string | null }>(
               `/ofertas/${oferta.id}/gerar-link-afiliado`, { method: 'POST' }
             );
             if (r.sucesso && r.linkAfiliado) {
-              setLegenda((prev) => {
-                const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
-                return linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev;
-              });
+              setLegenda((prev) => (linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev));
             } else {
-              setAvisoLink('Não foi possível gerar o link de afiliado. Verifique os cookies do ML.');
+              usarLinkProduto();
+              setAvisoLink('Não foi possível gerar o link de afiliado. Usando o link padrão do produto.');
             }
           } catch {
-            setAvisoLink('Erro ao gerar link de afiliado ML.');
+            usarLinkProduto();
+            setAvisoLink('Erro ao gerar link de afiliado ML. Usando o link padrão do produto.');
           } finally {
             setGerandoLink(false);
           }
