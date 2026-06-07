@@ -28,7 +28,7 @@ interface Oferta {
   criado_em: string;
 }
 
-interface Categoria { id: number; nome: string; total: number; plataforma?: string; }
+interface Categoria { nome: string; total: number; plataforma?: string; }
 interface Paginacao  { total: number; pagina: number; limite: number; totalPaginas: number; }
 interface GrupoDestino { id: string; group_jid: string; nome: string; papel: string; nicho: string; }
 interface TelegramConfig { botToken: string; chatIds: string[]; status: string; }
@@ -74,7 +74,7 @@ export default function Ofertas() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [paginacao, setPaginacao]   = useState<Paginacao | null>(null);
   const [pagina, setPagina]             = useState(1);
-  const [catFiltro, setCatFiltro]       = useState<number | null>(null);
+  const [catFiltro, setCatFiltro]       = useState<string | null>(null);
   const [statusFiltro, setStatusFiltro] = useState<string>('');
   const [platFiltro, setPlatFiltro]     = useState<string>('');
 
@@ -92,7 +92,7 @@ export default function Ofertas() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-      if (catFiltro)    params.set('categoria', String(catFiltro));
+      if (catFiltro)    params.set('categoria', catFiltro);
       if (statusFiltro) params.set('status', statusFiltro);
       if (platFiltro)   params.set('plataforma', platFiltro);
 
@@ -134,9 +134,9 @@ export default function Ofertas() {
     if (!paginacao || nova < 1 || nova > paginacao.totalPaginas) return;
     setPagina(nova);
   }
-  function mudarCategoria(id: number | null) { setCatFiltro(id); setPagina(1); }
-  function mudarStatus(s: string)             { setStatusFiltro(s); setPagina(1); }
-  function mudarPlat(p: string)               { setPlatFiltro(p);  setPagina(1); }
+  function mudarCategoria(nome: string | null) { setCatFiltro(nome); setPagina(1); }
+  function mudarStatus(s: string)              { setStatusFiltro(s); setPagina(1); }
+  function mudarPlat(p: string)                { setPlatFiltro(p); setCatFiltro(null); setPagina(1); }
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -173,9 +173,11 @@ export default function Ofertas() {
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!catFiltro ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             Todas
           </button>
-          {categorias.map((c) => (
-            <button key={`${c.nome}-${c.plataforma || ''}`} onClick={() => mudarCategoria(c.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${catFiltro === c.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          {categorias
+            .filter((c) => !platFiltro || c.plataforma === platFiltro)
+            .map((c) => (
+            <button key={`${c.nome}-${c.plataforma || ''}`} onClick={() => mudarCategoria(c.nome)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${catFiltro === c.nome ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {c.nome} <span className="opacity-70">({c.total})</span>
             </button>
           ))}
