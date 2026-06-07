@@ -28,7 +28,7 @@ interface Oferta {
   criado_em: string;
 }
 
-interface Categoria { id: number; nome: string; total: number; }
+interface Categoria { id: number; nome: string; total: number; plataforma?: string; }
 interface Paginacao  { total: number; pagina: number; limite: number; totalPaginas: number; }
 interface GrupoDestino { id: string; group_jid: string; nome: string; papel: string; nicho: string; }
 
