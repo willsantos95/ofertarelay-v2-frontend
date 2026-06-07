@@ -12,6 +12,7 @@ import AffiliateSettings from './pages/AffiliateSettings';
 import TelegramSettings from './pages/TelegramSettings';
 import Billing from './pages/Billing';
 import RelayLogs from './pages/RelayLogs';
+import Ofertas from './pages/Ofertas';
 import Help from './pages/Help';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="billing"       element={<Billing />} />
         <Route path="billing/success" element={<Billing />} />
         <Route path="relay-logs"    element={<RelayLogs />} />
+        <Route path="ofertas"       element={<Ofertas />} />
         <Route path="help"          element={<Help />} />
       </Route>
 
