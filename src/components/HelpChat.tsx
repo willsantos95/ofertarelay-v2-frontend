@@ -47,12 +47,17 @@ export default function HelpChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Verifica disponibilidade do chat
+  // Verifica disponibilidade do chat.
+  // Só esconde o widget se a API responder explicitamente { disponivel: false }.
+  // Em caso de erro de rede (backend fora, CORS), mantém visível — o usuário
+  // verá o erro 503 ao tentar enviar a primeira mensagem.
   useEffect(() => {
     fetch(`${API_BASE}/api/v1/ajuda/status`)
       .then((r) => r.json())
-      .then((d: { disponivel?: boolean }) => setDisponivel(d.disponivel !== false))
-      .catch(() => setDisponivel(false));
+      .then((d: { disponivel?: boolean }) => {
+        if (d.disponivel === false) setDisponivel(false);
+      })
+      .catch(() => { /* mantém disponivel=true */ });
   }, []);
 
   // Para o ponto pulsante após abrir uma vez

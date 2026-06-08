@@ -56,42 +56,42 @@ const GUIAS = [
     cor: 'bg-brand-100 text-brand-600',
     titulo: 'Primeiros Passos',
     desc: 'Criando conta, conectando WhatsApp e fazendo o primeiro relay.',
-    link: '#',
+    slug: 'primeiros-passos',
   },
   {
     icon: Smartphone,
     cor: 'bg-green-100 text-green-600',
     titulo: 'Conectando WhatsApp',
     desc: 'Criando instância, escaneando QR Code e dicas de segurança.',
-    link: '#',
+    slug: 'conectar-whatsapp',
   },
   {
     icon: Link2,
     cor: 'bg-blue-100 text-blue-600',
     titulo: 'Configurando Afiliado',
     desc: 'Credenciais Shopee Partner API e Mercado Livre.',
-    link: '#',
+    slug: 'configurar-afiliado',
   },
   {
     icon: ShoppingBag,
     cor: 'bg-orange-100 text-orange-600',
     titulo: 'Sincronizando Ofertas',
     desc: 'Shopee API, URLs do ML e filtros de listagem.',
-    link: '#',
+    slug: 'sincronizar-ofertas',
   },
   {
     icon: CalendarClock,
     cor: 'bg-purple-100 text-purple-600',
     titulo: 'Agendamento',
     desc: 'Configurando fila de envios automáticos e intervalos.',
-    link: '#',
+    slug: 'agendamento',
   },
   {
     icon: Bot,
     cor: 'bg-pink-100 text-pink-600',
     titulo: 'Legenda com IA',
     desc: 'Usando GPT para legendas mais persuasivas.',
-    link: '#',
+    slug: 'legenda-ia',
   },
 ];
 
@@ -196,9 +196,9 @@ export default function Help() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {GUIAS.map((g) => (
-            <a
+            <Link
               key={g.titulo}
-              href={g.link}
+              to={`/app/help/${g.slug}`}
               className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-brand-200 hover:bg-brand-50 transition-colors group"
             >
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${g.cor}`}>
@@ -208,7 +208,7 @@ export default function Help() {
                 <p className="font-medium text-gray-800 text-sm group-hover:text-brand-700">{g.titulo}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{g.desc}</p>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>

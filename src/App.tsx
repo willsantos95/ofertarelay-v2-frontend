@@ -17,6 +17,7 @@ import RelayLogs from './pages/RelayLogs';
 import Ofertas from './pages/Ofertas';
 import Agendamento from './pages/Agendamento';
 import Help from './pages/Help';
+import HelpArticle from './pages/HelpArticle';
 
 export default function App() {
   const { usuario, carregando } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="ofertas"       element={<Ofertas />} />
         <Route path="agendamento"   element={<Agendamento />} />
         <Route path="help"          element={<Help />} />
+        <Route path="help/:slug"    element={<HelpArticle />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
