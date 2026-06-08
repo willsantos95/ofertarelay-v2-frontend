@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import WhatsAppSettings from './pages/WhatsAppSettings';
 import Groups from './pages/Groups';
@@ -28,13 +29,19 @@ export default function App() {
 
   return (
     <Routes>
+      {/* Landing page pública */}
+      <Route path="/landing"        element={<Landing />} />
+
       {/* Rotas públicas */}
-      <Route path="/login"          element={usuario ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register"       element={usuario ? <Navigate to="/" replace /> : <Register />} />
+      <Route path="/login"          element={usuario ? <Navigate to="/app" replace /> : <Login />} />
+      <Route path="/register"       element={usuario ? <Navigate to="/app" replace /> : <Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      {/* Rotas autenticadas */}
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      {/* Rota raiz: app se logado, landing se não logado */}
+      <Route path="/" element={usuario ? <Navigate to="/app" replace /> : <Landing />} />
+
+      {/* Rotas autenticadas sob /app */}
+      <Route path="/app" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index                element={<Dashboard />} />
         <Route path="whatsapp"      element={<WhatsAppSettings />} />
         <Route path="groups"        element={<Groups />} />

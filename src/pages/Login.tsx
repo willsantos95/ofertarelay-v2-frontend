@@ -26,7 +26,7 @@ export default function Login() {
     setErro('');
     try {
       await entrar(data.email, data.senha);
-      navigate('/');
+      navigate('/app');
     } catch (e) {
       setErro((e as Error).message || 'Email ou senha inválidos');
     }

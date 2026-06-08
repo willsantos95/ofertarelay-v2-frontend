@@ -181,7 +181,7 @@ export default function Ofertas() {
               {syncingML ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
               {syncingML ? 'Sincronizando...' : 'Mercado Livre'}
             </button>
-            <Link to="/agendamento" className="btn btn-outline">
+            <Link to="/app/agendamento" className="btn btn-outline">
               <CalendarClock className="w-4 h-4" /> Agendamento
             </Link>
           </div>

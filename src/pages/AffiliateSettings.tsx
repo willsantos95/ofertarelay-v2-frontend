@@ -79,7 +79,7 @@ export default function AffiliateSettings() {
         subtitle="Credenciais usadas para gerar links de afiliado automaticamente"
         action={
           <div className="flex gap-2">
-            <Link to="/affiliate/logs" className="btn btn-outline">
+            <Link to="/app/affiliate/logs" className="btn btn-outline">
               <ClipboardList className="w-4 h-4" /> Ver Logs
             </Link>
             <button onClick={salvar} disabled={saving} className="btn btn-primary">

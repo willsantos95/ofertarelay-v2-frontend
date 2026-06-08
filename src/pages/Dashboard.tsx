@@ -66,7 +66,7 @@ export default function Dashboard() {
               <p className="text-xs text-red-600 mt-0.5">O relay está pausado. Reconecte para retomar.</p>
             </div>
           </div>
-          <Link to="/whatsapp" className="btn btn-danger text-xs shrink-0">Reconectar</Link>
+          <Link to="/app/whatsapp" className="btn btn-danger text-xs shrink-0">Reconectar</Link>
         </div>
       )}
 
@@ -114,7 +114,7 @@ export default function Dashboard() {
         ) : (
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-400">Nenhuma instância conectada ainda.</p>
-            <Link to="/whatsapp" className="btn btn-primary text-xs">Conectar agora</Link>
+            <Link to="/app/whatsapp" className="btn btn-primary text-xs">Conectar agora</Link>
           </div>
         )}
       </div>

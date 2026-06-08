@@ -6,23 +6,23 @@ import {
 } from 'lucide-react';
 
 const NAV = [
-  { to: '/',            icon: LayoutDashboard, label: 'Dashboard'   },
-  { to: '/whatsapp',    icon: Smartphone,      label: 'WhatsApp'    },
-  { to: '/groups',      icon: Users,            label: 'Grupos'      },
-  { to: '/ofertas',     icon: ShoppingBag,      label: 'Ofertas'     },
-  { to: '/agendamento', icon: CalendarClock,    label: 'Agendamento' },
-  { to: '/affiliate',   icon: Link2,            label: 'Afiliado'    },
-  { to: '/telegram',    icon: Send,             label: 'Telegram'    },
-  { to: '/billing',     icon: CreditCard,       label: 'Faturamento' },
-  { to: '/relay-logs',  icon: ClipboardList,    label: 'Histórico'   },
-  { to: '/help',        icon: HelpCircle,       label: 'Ajuda'       },
+  { to: '/app',            icon: LayoutDashboard, label: 'Dashboard'   },
+  { to: '/app/whatsapp',   icon: Smartphone,      label: 'WhatsApp'    },
+  { to: '/app/groups',     icon: Users,            label: 'Grupos'      },
+  { to: '/app/ofertas',    icon: ShoppingBag,      label: 'Ofertas'     },
+  { to: '/app/agendamento',icon: CalendarClock,    label: 'Agendamento' },
+  { to: '/app/affiliate',  icon: Link2,            label: 'Afiliado'    },
+  { to: '/app/telegram',   icon: Send,             label: 'Telegram'    },
+  { to: '/app/billing',    icon: CreditCard,       label: 'Faturamento' },
+  { to: '/app/relay-logs', icon: ClipboardList,    label: 'Histórico'   },
+  { to: '/app/help',       icon: HelpCircle,       label: 'Ajuda'       },
 ];
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
   return (
     <NavLink
       to={to}
-      end={to === '/'}
+      end={to === '/app'}
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
           isActive
@@ -90,7 +90,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/app'}
               onClick={() => navigate(to)}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-xs transition-colors ${

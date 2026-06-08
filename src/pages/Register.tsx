@@ -27,7 +27,7 @@ export default function Register() {
     setErro('');
     try {
       await registrar(data.nome, data.email, data.senha);
-      navigate('/whatsapp');
+      navigate('/app/whatsapp');
     } catch (e) {
       setErro((e as Error).message || 'Erro ao criar conta');
     }
