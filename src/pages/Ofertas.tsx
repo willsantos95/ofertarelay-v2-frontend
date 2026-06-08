@@ -540,35 +540,34 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
       })
       .catch(() => {});
 
-    // 3. Para ML: gerar link de afiliado em paralelo
-    const gerarLink = oferta.plataforma === 'mercadolivre'
-      ? (async () => {
-          setGerandoLink(true);
-          const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
-          // Em caso de falha, garante o link padrão do produto na legenda
-          const usarLinkProduto = () => {
-            if (oferta.link_produto && linkAtual && linkAtual !== oferta.link_produto) {
-              setLegenda((prev) => prev.replace(linkAtual, oferta.link_produto!));
-            }
-          };
-          try {
-            const r = await api<{ sucesso: boolean; linkAfiliado: string | null }>(
-              `/ofertas/${oferta.id}/gerar-link-afiliado`, { method: 'POST' }
-            );
-            if (r.sucesso && r.linkAfiliado) {
-              setLegenda((prev) => (linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev));
-            } else {
-              usarLinkProduto();
-              setAvisoLink('Não foi possível gerar o link de afiliado. Usando o link padrão do produto.');
-            }
-          } catch {
-            usarLinkProduto();
-            setAvisoLink('Erro ao gerar link de afiliado ML. Usando o link padrão do produto.');
-          } finally {
-            setGerandoLink(false);
-          }
-        })()
-      : Promise.resolve();
+    // 3. Gerar link de afiliado do usuário logado (Shopee e ML)
+    const gerarLink = (async () => {
+      setGerandoLink(true);
+      const linkAtual = oferta.link_afiliado || oferta.link_produto || '';
+      // Em caso de falha, garante o link do produto na legenda
+      const usarLinkFallback = () => {
+        const fallback = oferta.link_produto || oferta.link_afiliado || '';
+        if (fallback && linkAtual && fallback !== linkAtual) {
+          setLegenda((prev) => prev.replace(linkAtual, fallback));
+        }
+      };
+      try {
+        const r = await api<{ sucesso: boolean; linkAfiliado: string | null }>(
+          `/ofertas/${oferta.id}/gerar-link-afiliado`, { method: 'POST' }
+        );
+        if (r.sucesso && r.linkAfiliado) {
+          setLegenda((prev) => (linkAtual ? prev.replace(linkAtual, r.linkAfiliado!) : prev));
+        } else {
+          usarLinkFallback();
+          setAvisoLink('Não foi possível gerar o link de afiliado. Usando o link padrão do produto.');
+        }
+      } catch {
+        usarLinkFallback();
+        setAvisoLink('Erro ao gerar link de afiliado. Usando o link padrão do produto.');
+      } finally {
+        setGerandoLink(false);
+      }
+    })();
 
     Promise.all([carregarGrupos, carregarTelegram, gerarLink]).finally(() => setCarregando(false));
   }, [oferta]);
@@ -676,7 +675,7 @@ function EnviarOfertaModal({ oferta, onFechar, onEnviou }: {
                 <span className="text-gray-400 font-normal">(editável)</span>
                 {gerandoLink && (
                   <span className="flex items-center gap-1 text-xs text-brand-600">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Gerando link...
+                    <Loader2 className="w-3 h-3 animate-spin" /> Gerando link de afiliado...
                   </span>
                 )}
               </label>
