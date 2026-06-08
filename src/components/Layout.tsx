@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Smartphone, Users, Link2, Send,
   CreditCard, ClipboardList, HelpCircle, LogOut, Zap, ShoppingBag, CalendarClock,
 } from 'lucide-react';
+import HelpChat from './HelpChat';
 
 const NAV = [
   { to: '/app',            icon: LayoutDashboard, label: 'Dashboard'   },
@@ -104,6 +105,9 @@ export default function Layout() {
           ))}
         </nav>
       </div>
+
+      {/* Widget de chat de suporte flutuante */}
+      <HelpChat />
     </div>
   );
 }
