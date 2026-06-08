@@ -25,7 +25,7 @@ interface Oferta {
   categoria_id: number | null;
   categoria_nome: string;
   plataforma: 'shopee' | 'mercadolivre';
-  status: 'pendente' | 'enviado';
+  enviado_por_mim: boolean;
   criado_em: string;
 }
 
@@ -379,7 +379,7 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar, selecionada, onToggleSel
     try {
       await api(`/ofertas/${o.id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: o.status === 'enviado' ? 'pendente' : 'enviado' }),
+        body: JSON.stringify({ status: o.enviado_por_mim ? 'pendente' : 'enviado' }),
       });
       onAtualizou();
     } catch { /* ignora */ } finally { setUpdating(false); }
@@ -421,7 +421,7 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar, selecionada, onToggleSel
         }`}>
           {o.plataforma === 'shopee' ? 'Shopee' : 'ML'}
         </span>
-        {o.status === 'enviado' && (
+        {o.enviado_por_mim && (
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
             <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">✓ Enviado</span>
           </div>
@@ -456,11 +456,11 @@ function OfertaCard({ oferta: o, onAtualizou, onEnviar, selecionada, onToggleSel
 
           <button onClick={marcarEnviado} disabled={updating}
             className={`ml-auto text-xs px-2 py-1 rounded-lg font-medium transition-colors ${
-              o.status === 'enviado'
+              o.enviado_por_mim
                 ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
             }`}>
-            {updating ? '...' : o.status === 'enviado' ? 'Reativar' : 'Pendente'}
+            {updating ? '...' : o.enviado_por_mim ? 'Reativar' : 'Pendente'}
           </button>
         </div>
       </div>
