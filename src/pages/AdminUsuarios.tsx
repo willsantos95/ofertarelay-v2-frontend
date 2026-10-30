@@ -45,11 +45,12 @@ const ACOES: Record<string, string> = {
 };
 
 const data = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—');
+const WHATS: Record<string, string> = { open: 'Conectado', conectado: 'Conectado', close: 'Desconectado', connecting: 'Conectando' };
 const vitalicio = (s: string | null) => !!s && new Date(s).getFullYear() > 2900;
 
 function Selo({ s }: { s: string }) {
   const x = SITUACAO[s] || { r: s, cls: 'badge-gray' };
-  return <span className={`badge ${x.cls}`}>{x.r}</span>;
+  return <span className={`badge whitespace-nowrap ${x.cls}`}>{x.r}</span>;
 }
 
 function Painel({ id, fechar, mudou }: { id: string; fechar: () => void; mudou: () => void }) {
@@ -122,7 +123,7 @@ function Painel({ id, fechar, mudou }: { id: string; fechar: () => void; mudou: 
               <dt className="text-gray-400">Cadastro</dt><dd>{data(u.criado_em)}</dd>
               <dt className="text-gray-400">Último acesso</dt><dd>{u.ultimo_acesso_em ? formatDate(u.ultimo_acesso_em) : '—'}</dd>
               <dt className="text-gray-400">E-mail confirmado</dt><dd>{u.email_confirmado_em ? data(u.email_confirmado_em) : 'Não'}</dd>
-              <dt className="text-gray-400">WhatsApp</dt><dd>{u.whatsapp_status ? `${u.whatsapp_status}${u.whatsapp_telefone ? ` · ${u.whatsapp_telefone}` : ''}` : 'Não conectado'}</dd>
+              <dt className="text-gray-400">WhatsApp</dt><dd>{u.whatsapp_status ? `${WHATS[u.whatsapp_status] || u.whatsapp_status}${u.whatsapp_telefone ? ` · ${u.whatsapp_telefone}` : ''}` : 'Não conectado'}</dd>
               <dt className="text-gray-400">Grupos</dt><dd>{d.grupos.length ? d.grupos.map((g) => `${g.total} ${g.papel}`).join(', ') : '—'}</dd>
               <dt className="text-gray-400">Ofertas (30 dias)</dt><dd>{u.ofertas_30d.toLocaleString('pt-BR')}</dd>
               <dt className="text-gray-400">Status do plano</dt><dd>{u.status_plano}</dd>
@@ -336,7 +337,7 @@ export default function AdminUsuarios() {
                       <td className="py-2.5 text-xs">
                         {u.whatsapp_status === 'open' || u.whatsapp_status === 'conectado'
                           ? <span className="text-brand-600">Conectado</span>
-                          : <span className="text-gray-400">{u.whatsapp_status || '—'}</span>}
+                          : <span className="text-gray-400">{u.whatsapp_status ? (WHATS[u.whatsapp_status] || u.whatsapp_status) : '—'}</span>}
                       </td>
                       <td className="py-2.5 text-xs tabular-nums text-gray-700">{u.ofertas_30d.toLocaleString('pt-BR')}</td>
                       <td className="py-2.5 text-xs text-gray-500 whitespace-nowrap">{data(u.criado_em)}</td>

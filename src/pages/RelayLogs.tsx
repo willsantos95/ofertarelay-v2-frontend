@@ -97,7 +97,7 @@ function PorDia({ dados }: { dados: Resumo['porDia'] }) {
       {dados.length === 0 ? <p className="text-xs text-gray-400">Nada no período.</p> : (
         <div className="flex items-end gap-1 h-32" role="img" aria-label="Ofertas enviadas e com falha por dia">
           {dados.map((d) => (
-            <div key={d.dia} className="flex-1 flex flex-col justify-end items-center gap-px min-w-0"
+            <div key={d.dia} className="flex-1 h-full flex flex-col justify-end items-center gap-px min-w-0"
               title={`${d.dia.split('-').reverse().join('/')}: ${d.entregues} enviadas, ${d.falhas} falhas`}>
               {d.falhas > 0 && <div className="w-full rounded-t-sm bg-red-400" style={{ height: `${(d.falhas / max) * 100}%` }} />}
               <div className={`w-full bg-brand-500 ${d.falhas ? '' : 'rounded-t-sm'}`} style={{ height: `${(d.entregues / max) * 100}%` }} />
