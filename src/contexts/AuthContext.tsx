@@ -6,8 +6,13 @@ export interface Usuario {
   nome: string;
   email: string;
   chave_api: string;
-  status_plano: 'trial' | 'ativo' | 'cancelado' | 'suspenso';
+  status_plano: string;
   trial_termina_em: string;
+  premium_ate?: string | null;
+  email_confirmado?: boolean;
+  is_admin?: boolean;
+  plano_ativo?: boolean;
+  bloqueio_plano?: boolean;
 }
 
 interface AuthCtx {
