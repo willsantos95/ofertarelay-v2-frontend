@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
+import { BASE_URL } from '../lib/api';
 
 interface Mensagem {
   id: string;
@@ -13,7 +14,6 @@ interface HistoricoItem {
   content: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const SUGESTOES = [
   'Como conectar meu WhatsApp?',
@@ -52,7 +52,7 @@ export default function HelpChat() {
   // Em caso de erro de rede (backend fora, CORS), mantém visível — o usuário
   // verá o erro 503 ao tentar enviar a primeira mensagem.
   useEffect(() => {
-    fetch(`${API_BASE}/api/v1/ajuda/status`)
+    fetch(`${BASE_URL}/ajuda/status`)
       .then((r) => r.json())
       .then((d: { disponivel?: boolean }) => {
         if (d.disponivel === false) setDisponivel(false);
@@ -94,7 +94,7 @@ export default function HelpChat() {
     setCarregando(true);
 
     try {
-      const resp = await fetch(`${API_BASE}/api/v1/ajuda/chat`, {
+      const resp = await fetch(`${BASE_URL}/ajuda/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -104,7 +104,7 @@ export default function HelpChat() {
         }),
       });
 
-      const data = await resp.json() as { sucesso?: boolean; resposta?: string; erro?: { mensagem?: string } };
+      const data = await resp.json().catch(() => ({})) as { sucesso?: boolean; resposta?: string; erro?: { mensagem?: string } };
 
       if (data.sucesso && data.resposta) {
         setMensagens((prev) => [
@@ -112,15 +112,20 @@ export default function HelpChat() {
           { id: gerarId(), role: 'assistant', content: data.resposta!, ts: new Date() },
         ]);
       } else {
-        throw new Error(data.erro?.mensagem || 'Resposta inválida');
+        throw new Error(data.erro?.mensagem || `Erro ${resp.status}`);
       }
     } catch (err) {
+      console.error('[HelpChat]', err);
+      const detalhe = (err as Error)?.message;
+      const conhecido = detalhe && !/fetch|network|json/i.test(detalhe);
       setMensagens((prev) => [
         ...prev,
         {
           id: gerarId(),
           role: 'error',
-          content: 'Não consegui processar sua mensagem agora. Tente novamente ou fale com o suporte via WhatsApp.',
+          content: conhecido && /muitas perguntas|indisponível/i.test(detalhe!)
+            ? detalhe!
+            : 'Não consegui processar sua mensagem agora. Tente novamente ou fale com o suporte via WhatsApp.',
           ts: new Date(),
         },
       ]);
