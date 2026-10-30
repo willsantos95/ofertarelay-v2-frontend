@@ -4,11 +4,13 @@ WORKDIR /app
 
 # Declarar ARGs para as variáveis Vite (passadas pelo EasyPanel em tempo de build)
 ARG VITE_API_URL
+ARG VITE_API_MESMA_ORIGEM
 ARG VITE_PLAN_NAME
 ARG VITE_PLAN_AMOUNT
 
 # Exportar como ENV para o Vite conseguir ler durante o build
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_API_MESMA_ORIGEM=$VITE_API_MESMA_ORIGEM
 ENV VITE_PLAN_NAME=$VITE_PLAN_NAME
 ENV VITE_PLAN_AMOUNT=$VITE_PLAN_AMOUNT
 

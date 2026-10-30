@@ -1,4 +1,14 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+/**
+ * Endereço da API.
+ * Em produção o nginx do próprio frontend repassa /api/ para o backend, então a API é chamada
+ * no mesmo domínio da página (ofertarelay.com.br ou o domínio do Easypanel). Assim não há CORS
+ * e o cookie de login é do próprio site. VITE_API_URL só vale em desenvolvimento, ou em produção
+ * quando VITE_API_MESMA_ORIGEM=false.
+ */
+export const BASE_URL =
+  import.meta.env.PROD && import.meta.env.VITE_API_MESMA_ORIGEM !== 'false'
+    ? '/api/v1'
+    : (import.meta.env.VITE_API_URL || '/api/v1');
 
 export class ErroNaoAutorizado extends Error {
   constructor() { super('Não autorizado'); this.name = 'ErroNaoAutorizado'; }

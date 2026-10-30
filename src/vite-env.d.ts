@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  readonly VITE_API_MESMA_ORIGEM?: string;
   readonly VITE_PLAN_NAME: string;
   readonly VITE_PLAN_AMOUNT: string;
 }
