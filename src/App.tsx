@@ -18,6 +18,12 @@ import Ofertas from './pages/Ofertas';
 import Agendamento from './pages/Agendamento';
 import Help from './pages/Help';
 import HelpArticle from './pages/HelpArticle';
+import ResetPassword from './pages/ResetPassword';
+import ConfirmEmail from './pages/ConfirmEmail';
+import RelaySettings from './pages/RelaySettings';
+import LandingEditor from './pages/LandingEditor';
+import AdminUsuarios from './pages/AdminUsuarios';
+import AdminEmail from './pages/AdminEmail';
 
 export default function App() {
   const { usuario, carregando } = useAuth();
@@ -37,6 +43,8 @@ export default function App() {
       <Route path="/login"          element={usuario ? <Navigate to="/app" replace /> : <Login />} />
       <Route path="/register"       element={usuario ? <Navigate to="/app" replace /> : <Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password"  element={<ResetPassword />} />
+      <Route path="/confirmar-email" element={<ConfirmEmail />} />
 
       {/* Rota raiz: app se logado, landing se não logado */}
       <Route path="/" element={usuario ? <Navigate to="/app" replace /> : <Landing />} />
@@ -56,6 +64,10 @@ export default function App() {
         <Route path="agendamento"   element={<Agendamento />} />
         <Route path="help"          element={<Help />} />
         <Route path="help/:slug"    element={<HelpArticle />} />
+        <Route path="mensagens"     element={<RelaySettings />} />
+        <Route path="pagina"        element={<LandingEditor />} />
+        <Route path="admin/usuarios" element={usuario?.is_admin ? <AdminUsuarios /> : <Navigate to="/app" replace />} />
+        <Route path="admin/email"   element={usuario?.is_admin ? <AdminEmail /> : <Navigate to="/app" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

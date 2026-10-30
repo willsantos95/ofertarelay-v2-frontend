@@ -70,6 +70,25 @@ function gerarLegenda(o: Oferta): string {
 
 // ─── Página principal ─────────────────────────────────────────────
 
+
+type RespostaSync = { sucesso: boolean; emFila?: boolean; jobId?: string } & SyncResumo;
+
+/** Inicia a sincronização; se o backend colocar em fila, acompanha até terminar (máx. 5 min). */
+async function executarSync(caminho: string): Promise<SyncResumo> {
+  const r = await api<RespostaSync>(caminho, { method: 'POST' });
+  if (!r.emFila || !r.jobId) return r;
+  const limite = Date.now() + 5 * 60 * 1000;
+  while (Date.now() < limite) {
+    await new Promise((ok) => setTimeout(ok, 2500));
+    const s = await api<{ estado: string; resultado: SyncResumo | null; erro: string | null }>(
+      `/ofertas/sincronizar/status/${r.jobId}`
+    );
+    if (s.estado === 'completed') return s.resultado || ({} as SyncResumo);
+    if (s.estado === 'failed') throw new Error(s.erro || 'A sincronização falhou.');
+  }
+  throw new Error('A sincronização está demorando. Atualize a página em alguns minutos.');
+}
+
 export default function Ofertas() {
   const [ofertas, setOfertas]       = useState<Oferta[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -137,7 +156,7 @@ export default function Ofertas() {
   async function sincronizar() {
     setSyncing(true); setErro(''); setMsg(''); setSyncResumo(null);
     try {
-      const r = await api<{ sucesso: boolean } & SyncResumo>('/ofertas/sincronizar', { method: 'POST' });
+      const r = await executarSync('/ofertas/sincronizar');
       setMsg(`Shopee: ${r.totalNovos} novas ofertas adicionadas${r.totalUnicos != null ? ` (${r.totalUnicos} únicas encontradas)` : ''}.`);
       setSyncResumo(r);
       setPagina(1); await carregar();
@@ -148,7 +167,7 @@ export default function Ofertas() {
   async function sincronizarML() {
     setSyncingML(true); setErro(''); setMsg(''); setSyncResumo(null);
     try {
-      const r = await api<{ sucesso: boolean } & SyncResumo>('/ofertas/sincronizar/mercadolivre', { method: 'POST' });
+      const r = await executarSync('/ofertas/sincronizar/mercadolivre');
       setMsg(`Mercado Livre: ${r.totalNovos} novas ofertas adicionadas.`);
       setSyncResumo(r);
       setPagina(1); await carregar();
