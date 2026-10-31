@@ -35,6 +35,50 @@ function slugify(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 }
 
+function lerComoDataUrl(arquivo: Blob): Promise<string> {
+  return new Promise((ok, falha) => {
+    const fr = new FileReader();
+    fr.onload = () => ok(String(fr.result));
+    fr.onerror = () => falha(new Error('Não foi possível ler a imagem.'));
+    fr.readAsDataURL(arquivo);
+  });
+}
+
+/**
+ * Reduz a foto no navegador antes de enviar: no máximo 800 px no lado maior, em JPEG.
+ * A foto aparece com 112 px na página, então 800 px sobra, e o envio fica com ~100 KB
+ * em vez de vários MB. GIF vai como está (para manter a animação), se for pequeno.
+ */
+async function prepararImagem(arquivo: File): Promise<string> {
+  if (arquivo.type === 'image/gif') {
+    if (arquivo.size > 1.5 * 1024 * 1024) throw new Error('GIF muito grande (máximo 1,5 MB). Use uma foto PNG ou JPG.');
+    return lerComoDataUrl(arquivo);
+  }
+  const url = URL.createObjectURL(arquivo);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, falha) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => falha(new Error('Não foi possível abrir a imagem.'));
+      i.src = url;
+    });
+    const LADO = 800;
+    const escala = Math.min(1, LADO / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * escala));
+    const h = Math.max(1, Math.round(img.naturalHeight * escala));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return lerComoDataUrl(arquivo);
+    ctx.fillStyle = '#ffffff';            // fundo branco para PNG transparente virar JPEG
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', 0.86);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export default function LandingEditor() {
   const [l, setL] = useState<Landing>(VAZIA);
   const [existe, setExiste] = useState(false);
@@ -106,19 +150,18 @@ export default function LandingEditor() {
   async function enviarImagem(arquivo: File) {
     setErro('');
     if (!existe) { setErro('Salve a página uma vez antes de enviar a imagem.'); return; }
-    if (arquivo.size > 2 * 1024 * 1024) { setErro('A imagem deve ter no máximo 2 MB.'); return; }
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(arquivo.type)) { setErro('Use PNG, JPG, WEBP ou GIF.'); return; }
+    if (arquivo.size > 15 * 1024 * 1024) { setErro('A imagem deve ter no máximo 15 MB.'); return; }
     setEnviandoImg(true);
     try {
-      const dataUrl = await new Promise<string>((ok, falha) => {
-        const fr = new FileReader();
-        fr.onload = () => ok(String(fr.result));
-        fr.onerror = () => falha(new Error('Não foi possível ler a imagem.'));
-        fr.readAsDataURL(arquivo);
-      });
+      const dataUrl = await prepararImagem(arquivo);
       const r = await api<{ landing: Landing }>('/landing/imagem', { method: 'PUT', body: JSON.stringify({ dataUrl }) });
       setL({ ...l, tem_imagem: r.landing.tem_imagem });
       setImgVersao(Date.now());
-    } catch (e) { setErro((e as Error).message); }
+    } catch (e) {
+      const msg = (e as Error).message;
+      setErro(/413/.test(msg) ? 'A imagem ficou grande demais. Tente outra menor.' : msg);
+    }
     finally { setEnviandoImg(false); if (inputImg.current) inputImg.current.value = ''; }
   }
 
@@ -196,7 +239,7 @@ export default function LandingEditor() {
                   {l.tem_imagem ? 'Trocar imagem' : 'Enviar imagem'}
                 </button>
                 {l.tem_imagem && <button type="button" onClick={removerImagem} className="btn btn-outline text-red-600">Remover</button>}
-                <p className="text-xs text-gray-400 w-full">Quadrada, até 2 MB. Também aparece na prévia quando o link é compartilhado.</p>
+                <p className="text-xs text-gray-400 w-full">Quadrada de preferência. A foto é reduzida automaticamente. Também aparece na prévia quando o link é compartilhado.</p>
               </div>
             </div>
 
